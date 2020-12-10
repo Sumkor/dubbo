@@ -7,6 +7,14 @@ import org.apache.dubbo.demo.DuplicateExt;
 import org.junit.jupiter.api.Test;
 
 /**
+ * Dubbo SPI 官方文档
+ * https://dubbo.apache.org/zh/docs/v2.7/dev/source/dubbo-spi/#m-zhdocsv27devsourcedubbo-spi
+ * @see org.apache.dubbo.common.extension.ExtensionLoaderTest
+ *
+ * Dubbo SPI 自适应扩展
+ * https://dubbo.apache.org/zh/docs/v2.7/dev/source/adaptive-extension/
+ * @see org.apache.dubbo.common.extension.ExtensionLoader_Adaptive_Test
+ *
  * @author Sumkor
  * @since 2020/12/10
  */

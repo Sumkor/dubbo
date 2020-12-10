@@ -48,10 +48,7 @@ import org.apache.dubbo.common.lang.Prioritized;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.apache.dubbo.common.constants.CommonConstants.GROUP_KEY;
 import static org.apache.dubbo.common.extension.ExtensionLoader.getExtensionLoader;
@@ -444,6 +441,14 @@ public class ExtensionLoaderTest {
         Assertions.assertSame(list.get(1).getClass(), OrderActivateExtImpl1.class);
     }
 
+    /**
+     * Dubbo IOC
+     * InjectExtImpl 中依赖了 SimpleExt，只有 SimpleExt 中带了 @Adaptive 注解才会注入到 InjectExtImpl 实例中
+     * 注入到属性的实例是 SimpleExt$Adaptive，而不是 SimpleExtImpl1 对象
+     * SimpleExt$Adaptive 对象中没有属性，没有循环依赖的问题
+     * @see SimpleExt
+     * @see InjectExtImpl
+     */
     @Test
     public void testInjectExtension() {
         // test default
@@ -452,6 +457,17 @@ public class ExtensionLoaderTest {
         Assertions.assertNotNull(injectExtImpl.getSimpleExt());
         Assertions.assertNull(injectExtImpl.getSimpleExt1());
         Assertions.assertNull(injectExtImpl.getGenericType());
+
+        Map<String, String> map = new HashMap<>();
+        map.put("simple.ext", "impl2");
+        URL url = new URL("", "", 0, map);
+        SimpleExt simpleExt = injectExtImpl.getSimpleExt();
+        String str = simpleExt.echo(url, "str");
+        System.out.println("str = " + str);
+        /**
+         * 关于 Dubbo SPI Adapter 的内容
+         * @see ExtensionLoader_Adaptive_Test
+         */
     }
 
     @Test
