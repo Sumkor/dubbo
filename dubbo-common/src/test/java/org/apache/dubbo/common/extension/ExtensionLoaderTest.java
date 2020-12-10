@@ -22,13 +22,7 @@ import org.apache.dubbo.common.convert.StringToBooleanConverter;
 import org.apache.dubbo.common.convert.StringToDoubleConverter;
 import org.apache.dubbo.common.convert.StringToIntegerConverter;
 import org.apache.dubbo.common.extension.activate.ActivateExt1;
-import org.apache.dubbo.common.extension.activate.impl.ActivateExt1Impl1;
-import org.apache.dubbo.common.extension.activate.impl.GroupActivateExtImpl;
-import org.apache.dubbo.common.extension.activate.impl.OldActivateExt1Impl2;
-import org.apache.dubbo.common.extension.activate.impl.OldActivateExt1Impl3;
-import org.apache.dubbo.common.extension.activate.impl.OrderActivateExtImpl1;
-import org.apache.dubbo.common.extension.activate.impl.OrderActivateExtImpl2;
-import org.apache.dubbo.common.extension.activate.impl.ValueActivateExtImpl;
+import org.apache.dubbo.common.extension.activate.impl.*;
 import org.apache.dubbo.common.extension.convert.String2BooleanConverter;
 import org.apache.dubbo.common.extension.convert.String2DoubleConverter;
 import org.apache.dubbo.common.extension.convert.String2IntegerConverter;
@@ -45,19 +39,12 @@ import org.apache.dubbo.common.extension.ext8_add.AddExt1;
 import org.apache.dubbo.common.extension.ext8_add.AddExt2;
 import org.apache.dubbo.common.extension.ext8_add.AddExt3;
 import org.apache.dubbo.common.extension.ext8_add.AddExt4;
-import org.apache.dubbo.common.extension.ext8_add.impl.AddExt1Impl1;
-import org.apache.dubbo.common.extension.ext8_add.impl.AddExt1_ManualAdaptive;
-import org.apache.dubbo.common.extension.ext8_add.impl.AddExt1_ManualAdd1;
-import org.apache.dubbo.common.extension.ext8_add.impl.AddExt1_ManualAdd2;
-import org.apache.dubbo.common.extension.ext8_add.impl.AddExt2_ManualAdaptive;
-import org.apache.dubbo.common.extension.ext8_add.impl.AddExt3_ManualAdaptive;
-import org.apache.dubbo.common.extension.ext8_add.impl.AddExt4_ManualAdaptive;
+import org.apache.dubbo.common.extension.ext8_add.impl.*;
 import org.apache.dubbo.common.extension.ext9_empty.Ext9Empty;
 import org.apache.dubbo.common.extension.ext9_empty.impl.Ext9EmptyImpl;
 import org.apache.dubbo.common.extension.injection.InjectExt;
 import org.apache.dubbo.common.extension.injection.impl.InjectExtImpl;
 import org.apache.dubbo.common.lang.Prioritized;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -69,16 +56,10 @@ import java.util.Set;
 import static org.apache.dubbo.common.constants.CommonConstants.GROUP_KEY;
 import static org.apache.dubbo.common.extension.ExtensionLoader.getExtensionLoader;
 import static org.apache.dubbo.common.extension.ExtensionLoader.getLoadingStrategies;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.anyOf;
-import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ExtensionLoaderTest {
     @Test
@@ -167,6 +148,19 @@ public class ExtensionLoaderTest {
         assertEquals("Ext5Impl1-echo", impl1.echo(url, "ha"));
         assertEquals(echoCount1 + 1, Ext5Wrapper1.echoCount.get());
         assertEquals(echoCount2 + 1, Ext5Wrapper2.echoCount.get());
+    }
+
+    /**
+     * 在存在包装类的情况下，先后两次调用 getExtension，其中参数 wrap 不同
+     * 此时，第二次调用的结果总是和第一次相同，即参数 wrap 失效，是个 bug
+     */
+    @Test
+    public void test_getExtension_WithWrapper_bug() throws Exception {
+        WrappedExt impl2 = getExtensionLoader(WrappedExt.class).getExtension("impl1", false);
+        assertThat(impl2, instanceOf(org.apache.dubbo.common.extension.ext6_wrap.impl.Ext5Impl1.class));
+
+        WrappedExt impl1 = getExtensionLoader(WrappedExt.class).getExtension("impl1", true);
+        assertThat(impl1, instanceOf(org.apache.dubbo.common.extension.ext6_wrap.impl.Ext5Wrapper2.class));
     }
 
     @Test
