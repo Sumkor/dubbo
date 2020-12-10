@@ -140,10 +140,21 @@ public class ExtensionLoaderTest {
         assertTrue(getExtensionLoader(SimpleExt.class).getExtension("impl2") instanceof SimpleExtImpl2);
     }
 
+    /**
+     * 接口的实现包含包装类
+     * META-INF\dubbo\internal\org.apache.dubbo.common.extension.ext6_wrap.WrappedExt
+     */
     @Test
     public void test_getExtension_WithWrapper() throws Exception {
         WrappedExt impl1 = getExtensionLoader(WrappedExt.class).getExtension("impl1");
         assertThat(impl1, anyOf(instanceOf(Ext5Wrapper1.class), instanceOf(Ext5Wrapper2.class)));
+        /**
+         * @see ExtensionLoader#loadClass(java.util.Map, java.net.URL, java.lang.Class, java.lang.String, boolean)
+         * 由于判断到 WrappedExt 的实现类 Ext5Wrapper1、Ext5Wrapper2 满足 isWrapperClass，因此这两个实现类存入 cachedWrapperClasses，但不会存入 extensionClasses
+         *
+         * @see ExtensionLoader#createExtension(java.lang.String, boolean)
+         * 得到 Ext5Impl1 实例之后，一步一步包装得到最终的包装对象 Ext5Wrapper2(Ext5Wrapper1(Ext5Impl1))
+         */
 
         WrappedExt impl2 = getExtensionLoader(WrappedExt.class).getExtension("impl2");
         assertThat(impl2, anyOf(instanceOf(Ext5Wrapper1.class), instanceOf(Ext5Wrapper2.class)));
