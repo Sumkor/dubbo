@@ -426,7 +426,7 @@ public class ExtensionLoader<T> {
             synchronized (holder) {
                 instance = holder.get();
                 if (instance == null) {
-                    instance = createExtension(name, wrap); // 创建SPI实例（懒加载，使用的时候才创建）
+                    instance = createExtension(name, wrap); // 加载SPI文件中的所有实现类，对name对应的类进行实例化（懒加载）
                     holder.set(instance);
                 }
             }
@@ -585,7 +585,7 @@ public class ExtensionLoader<T> {
                 instance = cachedAdaptiveInstance.get();
                 if (instance == null) {
                     try {
-                        instance = createAdaptiveExtension();
+                        instance = createAdaptiveExtension(); // 创建
                         cachedAdaptiveInstance.set(instance);
                     } catch (Throwable t) {
                         createAdaptiveInstanceError = t;
@@ -1023,7 +1023,7 @@ public class ExtensionLoader<T> {
     }
 
     private Class<?> getAdaptiveExtensionClass() {
-        getExtensionClasses();
+        getExtensionClasses(); // 这里把SPI实现类都加载了
         if (cachedAdaptiveClass != null) {
             return cachedAdaptiveClass;
         }

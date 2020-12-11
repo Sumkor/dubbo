@@ -38,10 +38,7 @@ import java.util.Map;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ExtensionLoader_Adaptive_Test {
 
@@ -53,6 +50,31 @@ public class ExtensionLoader_Adaptive_Test {
     }
 
     @Test
+    public void test_getAdaptiveExtension() throws Exception {
+        SimpleExt ext0 = ExtensionLoader.getExtensionLoader(SimpleExt.class).getAdaptiveExtension();// SimpleExt$Adaptive
+        /**
+         * 调试的时候需要时刻注意 type 值的变化！！！重点关注 type 为 SimpleExt.class
+         * 入口：
+         * @see ExtensionLoader#createAdaptiveExtension()
+         *
+         * 1. 加载 SimpleExt$Adaptive
+         * @see ExtensionLoader#getAdaptiveExtensionClass()
+         * 这里首先把 SPI 实现类都加载了，再构建 SimpleExt$Adaptive 类的代码进行加载，后续只实例化 SimpleExt$Adaptive
+         *
+         * 2. 对 SimpleExt$Adaptive 进行属性注入
+         * @see ExtensionLoader#injectExtension(java.lang.Object)
+         * 其中
+         * type 为 SimpleExt.class
+         * objectFactory 为 AdaptiveExtensionFactory 实例
+         * instance 为 SimpleExt$Adaptive 实例
+         * 这里是对 SimpleExt$Adaptive 进行属性注入，由于没有属性值，实际上没有做什么处理
+         */
+
+        SimpleExt ext1 = ExtensionLoader.getExtensionLoader(SimpleExt.class).getExtension("impl1");// 实例化得到 SimpleExtImpl1，
+        assertNotEquals(ext0, ext1);
+    }
+
+    @Test
     public void test_getAdaptiveExtension_defaultAdaptiveKey() throws Exception {
         {
             SimpleExt ext = ExtensionLoader.getExtensionLoader(SimpleExt.class).getAdaptiveExtension();
@@ -60,7 +82,7 @@ public class ExtensionLoader_Adaptive_Test {
             Map<String, String> map = new HashMap<String, String>();
             URL url = new URL("p1", "1.2.3.4", 1010, "path1", map);
 
-            String echo = ext.echo(url, "haha");
+            String echo = ext.echo(url, "haha");// 实际是ExtensionLoader.getExtension("impl1")的实例来进行方法调用
             assertEquals("Ext1Impl1-echo", echo);
         }
 
@@ -71,7 +93,7 @@ public class ExtensionLoader_Adaptive_Test {
             map.put("simple.ext", "impl2");
             URL url = new URL("p1", "1.2.3.4", 1010, "path1", map);
 
-            String echo = ext.echo(url, "haha");
+            String echo = ext.echo(url, "haha");// 实际是ExtensionLoader.getExtension("impl2")的实例来进行方法调用
             assertEquals("Ext1Impl2-echo", echo);
         }
     }
