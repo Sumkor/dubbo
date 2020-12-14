@@ -15,6 +15,27 @@ import org.junit.jupiter.api.Test;
  * https://dubbo.apache.org/zh/docs/v2.7/dev/source/adaptive-extension/
  * @see org.apache.dubbo.common.extension.ExtensionLoader_Adaptive_Test
  *
+ *
+ *
+ * 为什么要设计 adaptive？注解在类上和注解在方法上的区别？
+ * https://www.cnblogs.com/histlyb/p/7717557.html
+ *
+ * adaptive 设计的目的是为了识别固定已知类和扩展未知类。
+ *
+ * 1.注解在类上：代表人工实现，实现一个装饰类（设计模式中的装饰模式），它主要作用于固定已知类，
+ * 目前整个系统只有 2 个，AdaptiveCompiler、AdaptiveExtensionFactory。
+ * a.为什么 AdaptiveCompiler 这个类是固定已知的？因为整个框架仅支持 Javassist 和 JdkCompiler。
+ * b.为什么 AdaptiveExtensionFactory 这个类是固定已知的？因为整个框架仅支持 2 个 objFactory：一个是 spi，另一个是 spring。
+ *
+ * 2.注解在方法上：代表自动生成和编译一个动态的 Adpative 类，它主要是用于 SPI，因为 spi 的类是不固定、未知的扩展类，所以设计了动态 $Adaptive 类。
+ * 例如 Protocol 的 spi 类有 injvm dubbo registry filter listener等等 很多扩展未知类，
+ * 它设计了 Protocol$Adaptive 的类，通过 ExtensionLoader.getExtensionLoader(Protocol.class).getExtension(spi类);来提取对象
+ *
+ * 具体实现见 {@link ExtensionLoader#getAdaptiveExtensionClass()}
+ * 当 @adaptive 注解在类上时，固定只返回该类；
+ * 否者判断接口方法上是否存在 @adaptive 注解，存在则创建并返回动态 $Adaptive 类。
+ *
+ *
  * @author Sumkor
  * @since 2020/12/10
  */

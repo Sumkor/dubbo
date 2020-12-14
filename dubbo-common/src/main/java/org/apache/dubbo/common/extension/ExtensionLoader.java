@@ -833,7 +833,7 @@ public class ExtensionLoader<T> {
             if (urls != null) {
                 while (urls.hasMoreElements()) {
                     java.net.URL resourceURL = urls.nextElement();
-                    loadResource(extensionClasses, classLoader, resourceURL, overridden, excludedPackages); // 遍历加载文件
+                    loadResource(extensionClasses, classLoader, resourceURL, overridden, excludedPackages); // 加载文件
                 }
             }
         } catch (Throwable t) {
@@ -1024,10 +1024,10 @@ public class ExtensionLoader<T> {
 
     private Class<?> getAdaptiveExtensionClass() {
         getExtensionClasses(); // 这里把SPI实现类都加载了
-        if (cachedAdaptiveClass != null) {
+        if (cachedAdaptiveClass != null) { // 如果实现类上具有@Adaptive注解，则存储到cachedAdaptiveClass中直接返回，否则就需要动态创建一个cachedAdaptiveClass
             return cachedAdaptiveClass;
         }
-        return cachedAdaptiveClass = createAdaptiveExtensionClass();
+        return cachedAdaptiveClass = createAdaptiveExtensionClass(); // 如果接口方法上具有@Adaptive注解，则生成动态$Adaptive类
     }
 
     private Class<?> createAdaptiveExtensionClass() {

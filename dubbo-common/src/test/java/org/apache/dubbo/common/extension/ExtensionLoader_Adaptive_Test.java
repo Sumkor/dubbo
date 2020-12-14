@@ -59,7 +59,8 @@ public class ExtensionLoader_Adaptive_Test {
          *
          * 1. 加载 SimpleExt$Adaptive
          * @see ExtensionLoader#getAdaptiveExtensionClass()
-         * 这里首先把 SPI 实现类都加载了，再构建 SimpleExt$Adaptive 类的代码进行加载，后续只实例化 SimpleExt$Adaptive
+         * 这里首先把 SPI 实现类都加载了，由于其实现类中均没有使用 @Adaptive 修饰类，因此需要动态构建 SimpleExt$Adaptive 类的代码进行加载。
+         * 后续只实例化 SimpleExt$Adaptive
          *
          * 2. 对 SimpleExt$Adaptive 进行属性注入
          * @see ExtensionLoader#injectExtension(java.lang.Object)
@@ -70,10 +71,18 @@ public class ExtensionLoader_Adaptive_Test {
          * 这里是对 SimpleExt$Adaptive 进行属性注入，由于没有属性值，实际上没有做什么处理
          */
 
-        SimpleExt ext1 = ExtensionLoader.getExtensionLoader(SimpleExt.class).getExtension("impl1");// 实例化得到 SimpleExtImpl1，
+        SimpleExt ext1 = ExtensionLoader.getExtensionLoader(SimpleExt.class).getExtension("impl1");// SimpleExtImpl1
         assertNotEquals(ext0, ext1);
     }
 
+    /**
+     * SimpleExt 接口的方法上具有 @Adaptive 注解，可以根据方法入参（或者其他方式）来确定实际执行该方法的【实现类】实例
+     * 这里的确定方式包括：
+     * 1. @SPI 注解参数
+     * 2. 入参 URL 值
+     * 3. @Adaptive 方法注解参数
+     * https://www.jianshu.com/p/dc616814ce98
+     */
     @Test
     public void test_getAdaptiveExtension_defaultAdaptiveKey() throws Exception {
         {
