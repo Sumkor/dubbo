@@ -380,6 +380,18 @@ public class ExtensionLoaderTest {
         }
     }
 
+    /**
+     * dubbo-common/src/test/resources/META-INF/dubbo/internal/org.apache.dubbo.common.extension.activate.ActivateExt1
+     * 解析该 SPI 文件，不根据 key 来确定实现类了，而是根据实现类上的 @Activate 注解参数来匹配，可匹配到多个
+     *
+     * Dubbo SPI 之 Activate 详解
+     * https://www.jianshu.com/p/bc523348f519
+     *
+     * 1. 根据 ExtensionLoader.getActivateExtension 中的 group 和搜索到此类型的实例进行比较，如果 group 能匹配到，就是我们选择的，也就是在此条件下需要激活的。
+     * 2. @Activate 中的 value 是参数是第二层过滤参数（第一层是通过 group），在 group 校验通过的前提下，如果 URL 中的参数（k）与值（v）中的参数名同 @Activate 中的 value 值一致或者包含，那么才会被选中。
+     *    相当于加入了 value 后，条件更为苛刻点，需要 URL 中有此参数，并且参数必须有值。
+     * 3. @Activate 的 order 参数对于同一个类型的多个扩展来说，order值越小，优先级越高。
+     */
     @Test
     public void testLoadActivateExtension() throws Exception {
         // test default
@@ -407,7 +419,7 @@ public class ExtensionLoaderTest {
         // test value
         url = url.removeParameter(GROUP_KEY);
         url = url.addParameter(GROUP_KEY, "value");
-        url = url.addParameter("value", "value");
+        url = url.addParameter("value", "value"); // URL中必须有value参数才能命中
         list = getExtensionLoader(ActivateExt1.class)
                 .getActivateExtension(url, new String[]{}, "value");
         Assertions.assertEquals(1, list.size());

@@ -36,6 +36,16 @@ import org.junit.jupiter.api.Test;
  * 否者判断接口方法上是否存在 @adaptive 注解，存在则创建并返回动态 $Adaptive 类。
  *
  *
+ *
+ * Dubbo IOC
+ * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#testInjectExtension()
+ *
+ * Dubbo AOP
+ * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#test_getExtension_WithWrapper()
+ *
+ * Dubbo Activate
+ * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#testLoadActivateExtension()
+ *
  * @author Sumkor
  * @since 2020/12/10
  */

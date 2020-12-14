@@ -895,7 +895,7 @@ public class ExtensionLoader<T> {
                     type + ", class line: " + clazz.getName() + "), class "
                     + clazz.getName() + " is not subtype of interface.");
         }
-        if (clazz.isAnnotationPresent(Adaptive.class)) { // 检测目标类上是否有 Adaptive 注解
+        if (clazz.isAnnotationPresent(Adaptive.class)) { // 检测目标类上是否有 @Adaptive 注解
             cacheAdaptiveClass(clazz, overridden);
         } else if (isWrapperClass(clazz)) { // 检测目标类是否是 Wrapper 类型
             cacheWrapperClass(clazz);
@@ -910,7 +910,7 @@ public class ExtensionLoader<T> {
 
             String[] names = NAME_SEPARATOR.split(name);
             if (ArrayUtils.isNotEmpty(names)) {
-                cacheActivateClass(clazz, names[0]);
+                cacheActivateClass(clazz, names[0]); // 检测目标类上是否有 @Activate 注解
                 for (String n : names) {
                     cacheName(clazz, n);
                     saveInExtensionClass(extensionClasses, clazz, n, overridden); // extensionClasses中存储<key:name,value:class>，当同一个name对应多个class时，抛异常
