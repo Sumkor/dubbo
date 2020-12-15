@@ -312,9 +312,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 serviceMetadata
         );
 
-        List<URL> registryURLs = ConfigValidationUtils.loadRegistries(this, true);
+        List<URL> registryURLs = ConfigValidationUtils.loadRegistries(this, true); // 加载注册中心链接，可存在多个注册中心
 
-        for (ProtocolConfig protocolConfig : protocols) {
+        for (ProtocolConfig protocolConfig : protocols) { // 遍历协议，每个协议都需要注册到注册中心
             String pathKey = URL.buildKey(getContextPath(protocolConfig)
                     .map(p -> p + "/" + path)
                     .orElse(path), group, version);
@@ -455,13 +455,13 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         // don't export when none is configured
         if (!SCOPE_NONE.equalsIgnoreCase(scope)) {
 
-            // export to local if the config is not remote (export to remote only when config is remote)
+            // export to local if the config is not remote (export to remote only when config is remote) // 本地发布
             if (!SCOPE_REMOTE.equalsIgnoreCase(scope)) {
                 exportLocal(url);
             }
-            // export to remote if the config is not local (export to local only when config is local)
+            // export to remote if the config is not local (export to local only when config is local) // 远程发布
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
-                if (CollectionUtils.isNotEmpty(registryURLs)) {
+                if (CollectionUtils.isNotEmpty(registryURLs)) { // 远程发布至注册中心
                     for (URL registryURL : registryURLs) {
                         //if protocol is only injvm ,not register
                         if (LOCAL_PROTOCOL.equalsIgnoreCase(url.getProtocol())) {
@@ -470,7 +470,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                         url = url.addParameterIfAbsent(DYNAMIC_KEY, registryURL.getParameter(DYNAMIC_KEY));
                         URL monitorUrl = ConfigValidationUtils.loadMonitor(this, registryURL);
                         if (monitorUrl != null) {
-                            url = url.addParameterAndEncoded(MONITOR_KEY, monitorUrl.toFullString());
+                            url = url.addParameterAndEncoded(MONITOR_KEY, monitorUrl.toFullString()); // 将监控中心链接作为参数添加到 url 中
                         }
                         if (logger.isInfoEnabled()) {
                             if (url.getParameter(REGISTER_KEY, true)) {
@@ -486,13 +486,13 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                             registryURL = registryURL.addParameter(PROXY_KEY, proxy);
                         }
 
-                        Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString()));
+                        Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString())); // 将具体的实现类转换成Invoker
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
-                        Exporter<?> exporter = PROTOCOL.export(wrapperInvoker);
+                        Exporter<?> exporter = PROTOCOL.export(wrapperInvoker); // 发布服务，并生成Exporter
                         exporters.add(exporter);
                     }
-                } else {
+                } else { // 不存在注册中心，仅发布服务
                     if (logger.isInfoEnabled()) {
                         logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url);
                     }
@@ -521,7 +521,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
      */
     private void exportLocal(URL url) {
         URL local = URLBuilder.from(url)
-                .setProtocol(LOCAL_PROTOCOL)
+                .setProtocol(LOCAL_PROTOCOL) // 本地发布的协议injvm
                 .setHost(LOCALHOST_VALUE)
                 .setPort(0)
                 .build();
