@@ -1,5 +1,6 @@
 package com.sumkor.demo;
 
+import org.apache.dubbo.config.AbstractConfig;
 import org.apache.dubbo.config.ServiceConfig;
 import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
 import org.apache.dubbo.config.bootstrap.DubboBootstrap;
@@ -41,6 +42,8 @@ public class ServiceExportTest {
      * @see ServiceConfig#doExportUrls()
      *
      *
+     * 重写 toString 方法
+     * @see AbstractConfig#toString()
      *
      */
 }

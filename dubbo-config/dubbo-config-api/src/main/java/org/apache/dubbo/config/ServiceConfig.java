@@ -217,7 +217,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
     private void checkAndUpdateSubConfigs() {
         // Use default configs defined explicitly with global scope
         completeCompoundConfigs();
-        checkDefault();
+        checkDefault(); // 构造默认ProviderConfig，即 <dubbo:provider />
         checkProtocol();
         // init some null configuration.
         List<ConfigInitializer> configInitializers = ExtensionLoader.getExtensionLoader(ConfigInitializer.class)
@@ -226,7 +226,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
         // if protocol is not injvm checkRegistry
         if (!isOnlyInJvm()) {
-            checkRegistry();
+            checkRegistry(); // 构造RegistryConfig，例如 <dubbo:registry address="zookeeper://127.0.0.1:2181" protocol="zookeeper" port="2181" />
         }
         this.refresh();
 
