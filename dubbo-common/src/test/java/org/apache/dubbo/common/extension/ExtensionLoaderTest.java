@@ -402,7 +402,7 @@ public class ExtensionLoaderTest {
         Assertions.assertSame(list.get(0).getClass(), ActivateExt1Impl1.class);
 
         // test group
-        url = url.addParameter(GROUP_KEY, "group1");
+        url = url.addParameter(GROUP_KEY, "group1"); // url该参数完全无效
         list = getExtensionLoader(ActivateExt1.class)
                 .getActivateExtension(url, new String[]{}, "group1");
         Assertions.assertEquals(1, list.size());

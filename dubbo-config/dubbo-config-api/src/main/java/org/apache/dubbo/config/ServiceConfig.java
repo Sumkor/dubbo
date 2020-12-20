@@ -200,7 +200,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         serviceMetadata.setServiceInterfaceName(getInterface());
         serviceMetadata.setTarget(getRef());
 
-        if (shouldDelay()) {
+        if (shouldDelay()) { // 是否延迟发布
             DELAY_EXPORT_EXECUTOR.schedule(this::doExport, getDelay(), TimeUnit.MILLISECONDS);
         } else {
             doExport();
@@ -332,8 +332,8 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             name = DUBBO;
         }
 
-        Map<String, String> map = new HashMap<String, String>();
-        map.put(SIDE_KEY, PROVIDER_SIDE);
+        Map<String, String> map = new HashMap<String, String>(); // 先构造参数map，后续用于构造url
+        map.put(SIDE_KEY, PROVIDER_SIDE); // 服务提供方标识
 
         ServiceConfig.appendRuntimeParameters(map);
         AbstractConfig.appendParameters(map, getMetrics());
@@ -442,9 +442,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         // export service
         String host = findConfigedHosts(protocolConfig, registryURLs, map);
         Integer port = findConfigedPorts(protocolConfig, name, map);
-        URL url = new URL(name, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), map);
+        URL url = new URL(name, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), map); // 利用map构造url
 
-        // You can customize Configurator to append extra parameters
+        // You can customize Configurator to append extra parameters // 检查扩展点，用于给url添加自定参数
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .hasExtension(url.getProtocol())) {
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)

@@ -96,7 +96,7 @@ public abstract class AbstractConfig implements Serializable {
         return value;
     }
 
-    public static String getTagName(Class<?> cls) {
+    public static String getTagName(Class<?> cls) { // 类名去掉SUFFIXES结尾的字符串，再将驼峰改为横杆写法，如 CacheCenterConfig -> cache-center
         String tag = cls.getSimpleName();
         for (String suffix : SUFFIXES) {
             if (tag.endsWith(suffix)) {
