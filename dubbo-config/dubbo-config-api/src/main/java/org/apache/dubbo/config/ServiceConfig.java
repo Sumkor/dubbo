@@ -190,7 +190,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             bootstrap.initialize();
         }
 
-        checkAndUpdateSubConfigs();
+        checkAndUpdateSubConfigs(); // 对ServiceConfig中的属性进行实例化和赋值
 
         //init serviceMetadata
         serviceMetadata.setVersion(getVersion());
@@ -217,8 +217,8 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
     private void checkAndUpdateSubConfigs() {
         // Use default configs defined explicitly with global scope
         completeCompoundConfigs();
-        checkDefault(); // 构造默认ProviderConfig，即 <dubbo:provider />
-        checkProtocol();
+        checkDefault(); // 实例化ProviderConfig，如 <dubbo:provider />
+        checkProtocol(); // 实例化ProtocolConfig，如 <dubbo:protocol name="dubbo" />
         // init some null configuration.
         List<ConfigInitializer> configInitializers = ExtensionLoader.getExtensionLoader(ConfigInitializer.class)
                 .getActivateExtension(URL.valueOf("configInitializer://"), (String[]) null);
@@ -226,9 +226,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
         // if protocol is not injvm checkRegistry
         if (!isOnlyInJvm()) {
-            checkRegistry(); // 构造RegistryConfig，例如 <dubbo:registry address="zookeeper://127.0.0.1:2181" protocol="zookeeper" port="2181" />
+            checkRegistry(); // 实例化RegistryConfig，如 <dubbo:registry address="zookeeper://127.0.0.1:2181" protocol="zookeeper" port="2181" />
         }
-        this.refresh();
+        this.refresh(); // 执行ServiceConfig的父类及子类的所有setter、setParameters方法
 
         if (StringUtils.isEmpty(interfaceName)) {
             throw new IllegalStateException("<dubbo:service interface=\"\" /> interface not allow null!");
@@ -292,7 +292,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (exported) {
             return;
         }
-        exported = true;
+        exported = true; // 设置为已发布
 
         if (StringUtils.isEmpty(path)) {
             path = interfaceName;
@@ -303,8 +303,8 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void doExportUrls() {
         ServiceRepository repository = ApplicationModel.getServiceRepository();
-        ServiceDescriptor serviceDescriptor = repository.registerService(getInterfaceClass());
-        repository.registerProvider(
+        ServiceDescriptor serviceDescriptor = repository.registerService(getInterfaceClass()); // 当前服务provider的描述类
+        repository.registerProvider( // 将provider注册到ServiceRepository之中
                 getUniqueServiceName(),
                 ref,
                 serviceDescriptor,
@@ -486,10 +486,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                             registryURL = registryURL.addParameter(PROXY_KEY, proxy);
                         }
 
-                        Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString())); // 将具体的实现类转换成Invoker
+                        Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString())); // 将具体的服务实现类转换成Invoker
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
-                        Exporter<?> exporter = PROTOCOL.export(wrapperInvoker); // 发布服务，并生成Exporter
+                        Exporter<?> exporter = PROTOCOL.export(wrapperInvoker); // 对服务Invoker进行发布，转换为Exporter
                         exporters.add(exporter);
                     }
                 } else { // 不存在注册中心，仅发布服务

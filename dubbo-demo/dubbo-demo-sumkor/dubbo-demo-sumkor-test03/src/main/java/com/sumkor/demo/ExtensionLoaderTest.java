@@ -24,6 +24,19 @@ public class ExtensionLoaderTest {
      * @see org.apache.dubbo.common.extension.ExtensionLoader_Adaptive_Test
      *
      *
+     * Dubbo IOC
+     * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#testInjectExtension()
+     *
+     * Dubbo AOP
+     * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#test_getExtension_WithWrapper()
+     *
+     * Dubbo Activate
+     * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#testLoadActivateExtension()
+     *
+     * Dubbo Adaptive
+     * @see org.apache.dubbo.common.extension.ExtensionLoader_Adaptive_Test
+     *
+     *
      *
      * 为什么要设计 adaptive？注解在类上和注解在方法上的区别？
      * https://www.cnblogs.com/histlyb/p/7717557.html
@@ -42,17 +55,6 @@ public class ExtensionLoaderTest {
      * 具体实现见 {@link ExtensionLoader#getAdaptiveExtensionClass()}
      * 当 @adaptive 注解在类上时，固定只返回该类；
      * 否者判断接口方法上是否存在 @adaptive 注解，存在则创建并返回动态 $Adaptive 类。
-     *
-     *
-     *
-     * Dubbo IOC
-     * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#testInjectExtension()
-     *
-     * Dubbo AOP
-     * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#test_getExtension_WithWrapper()
-     *
-     * Dubbo Activate
-     * @see org.apache.dubbo.common.extension.ExtensionLoaderTest#testLoadActivateExtension()
      */
 
     /**

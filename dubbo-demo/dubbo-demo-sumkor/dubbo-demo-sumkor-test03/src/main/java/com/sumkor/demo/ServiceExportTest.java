@@ -138,11 +138,11 @@ public class ServiceExportTest {
      */
 
     /**
-     * 自测本地发布中，根据 injvm 协议获取 protocol 实现类
+     * 自测本地发布中，根据 injvm/dubbo 协议获取 protocol 实现类
      * @see ServiceConfig#exportLocal(org.apache.dubbo.common.URL)
      */
     @Test
-    public void spi_injvm_protocal() {
+    public void spi_protocal() {
         Protocol injvm = ExtensionLoader.getExtensionLoader(Protocol.class).getExtension("injvm");
         System.out.println(injvm instanceof ProtocolFilterWrapper);
 

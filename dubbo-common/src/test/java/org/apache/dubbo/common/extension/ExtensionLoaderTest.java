@@ -419,7 +419,7 @@ public class ExtensionLoaderTest {
         // test value
         url = url.removeParameter(GROUP_KEY);
         url = url.addParameter(GROUP_KEY, "value");
-        url = url.addParameter("value", "value"); // URL中必须有value参数才能命中
+        url = url.addParameter("value", "value"); // URL中必须有value参数才能命中ValueActivateExtImpl
         list = getExtensionLoader(ActivateExt1.class)
                 .getActivateExtension(url, new String[]{}, "value");
         Assertions.assertEquals(1, list.size());
