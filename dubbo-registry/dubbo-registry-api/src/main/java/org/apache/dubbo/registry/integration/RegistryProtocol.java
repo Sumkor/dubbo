@@ -202,16 +202,16 @@ public class RegistryProtocol implements Protocol {
 
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
         //export invoker
-        final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
+        final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl); // 发布对应协议的服务，如：启用netty服务器发布dubbo协议的服务
 
         // url to registry
-        final Registry registry = getRegistry(originInvoker);
+        final Registry registry = getRegistry(originInvoker); // 根据 URL 加载 Registry 实现类，比如 ZookeeperRegistry
         final URL registeredProviderUrl = getUrlToRegistry(providerUrl, registryUrl);
 
         // decide if we need to delay publish
         boolean register = providerUrl.getParameter(REGISTER_KEY, true);
         if (register) {
-            register(registryUrl, registeredProviderUrl);
+            register(registryUrl, registeredProviderUrl); // 向注册中心注册服务
         }
 
         // register stated url on provider model
@@ -221,7 +221,7 @@ public class RegistryProtocol implements Protocol {
         exporter.setRegisterUrl(registeredProviderUrl);
         exporter.setSubscribeUrl(overrideSubscribeUrl);
 
-        // Deprecated! Subscribe to override rules in 2.6.x or before.
+        // Deprecated! Subscribe to override rules in 2.6.x or before. // 向注册中心进行订阅 override 数据，已过时
         registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
 
         notifyExport(exporter);

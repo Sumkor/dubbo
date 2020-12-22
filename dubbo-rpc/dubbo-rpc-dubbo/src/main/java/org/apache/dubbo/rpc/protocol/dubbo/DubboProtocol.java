@@ -317,11 +317,11 @@ public class DubboProtocol extends AbstractProtocol {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
-                        serverMap.put(key, createServer(url));
+                        serverMap.put(key, createServer(url)); // 创建服务器实例
                     }
                 }
             } else {
-                // server supports reset, use together with override
+                // server supports reset, use together with override // 服务器已创建，则根据 url 中的配置重置服务器
                 server.reset(url);
             }
         }
@@ -335,7 +335,7 @@ public class DubboProtocol extends AbstractProtocol {
                 .addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT))
                 .addParameter(CODEC_KEY, DubboCodec.NAME)
                 .build();
-        String str = url.getParameter(SERVER_KEY, DEFAULT_REMOTING_SERVER);
+        String str = url.getParameter(SERVER_KEY, DEFAULT_REMOTING_SERVER); // 获取 server 参数，默认为 netty
 
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str)) {
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
@@ -351,7 +351,7 @@ public class DubboProtocol extends AbstractProtocol {
         str = url.getParameter(CLIENT_KEY);
         if (str != null && str.length() > 0) {
             Set<String> supportedTypes = ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions();
-            if (!supportedTypes.contains(str)) {
+            if (!supportedTypes.contains(str)) { // 检测当前 Dubbo 所支持的 Transporter 实现类名称列表中，是否包含 client 所表示的 Transporter，若不包含，则抛出异常
                 throw new RpcException("Unsupported client type: " + str);
             }
         }

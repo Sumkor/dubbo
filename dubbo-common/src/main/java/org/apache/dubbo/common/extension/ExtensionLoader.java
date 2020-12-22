@@ -645,6 +645,8 @@ public class ExtensionLoader<T> {
                     wrapperClassesList.addAll(cachedWrapperClasses);
                     wrapperClassesList.sort(WrapperComparator.COMPARATOR);
                     Collections.reverse(wrapperClassesList);
+                    // 按包装类上的注解@activate参数order排序，（按数值）从小到大，再逆序为从大到小；order最小的包装在最外面，是最先执行。因此可以说，order越小优先级越高。
+                    // 若包装类上没有注解@activate，则按配置文件顺序，写在最后的包装在最外面，是最先执行。
                 }
 
                 if (CollectionUtils.isNotEmpty(wrapperClassesList)) {
