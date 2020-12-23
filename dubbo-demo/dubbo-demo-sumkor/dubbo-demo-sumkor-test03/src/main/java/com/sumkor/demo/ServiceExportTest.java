@@ -76,11 +76,13 @@ public class ServiceExportTest {
      *
      * 继续看服务发布
      * @see org.apache.dubbo.config.ServiceConfig#doExport()
+     *
+     * 遍历协议 ProtocolConfig，每个协议都需要注册到注册中心，协议形如：<dubbo:protocol name="dubbo" />
      * @see ServiceConfig#doExportUrls()
      *
-     * 2. 构造参数 map，再利用 map 构造 url，得到：
+     * 2. 构造参数 map，再利用 map 构造 url
      * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
-     * dubbo://172.168.1.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.168.1.1&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
+     *     url = dubbo://172.168.1.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.168.1.1&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
      *
      *
      *
@@ -88,7 +90,7 @@ public class ServiceExportTest {
      * @see ServiceConfig#exportLocal(org.apache.dubbo.common.URL)
      *
      * 3.1 修改 url 中的协议为 injvm
-     * injvm://127.0.0.1/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.168.1.1&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
+     *     local = injvm://127.0.0.1/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.168.1.1&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
      *
      * 3.2 PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, local)
      *
@@ -97,21 +99,26 @@ public class ServiceExportTest {
      * 执行 ProxyFactory$Adaptive#getInvoker，实际执行
      * @see JavassistProxyFactory#getInvoker(java.lang.Object, java.lang.Class, org.apache.dubbo.common.URL)
      *
+     * 该操作的结果是
+     * 将服务实现类包装成 Wrapper 实例（动态生成，代码见下方），
+     * 再使用 AbstractProxyInvoker 代理 wrapper.invokeMethod 方法，返回 AbstractProxyInvoker 实例。
+     *
      * 3.3 ROTOCOL.export(PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, local))
+     *
+     * 即 ROTOCOL.export(invoker)
      *
      * SPI 文件为 dubbo-rpc/dubbo-rpc-api/src/main/resources/META-INF/dubbo/internal/org.apache.dubbo.rpc.Protocol
      * 这里的 ROTOCOL 为 Protocol$Adaptive 实例（代码见下方）
      * 执行 Protocol$Adaptive#export 方法，由于 url.getProtocol() 为 injvm，即实际执行
-     * ExtensionLoader.getExtensionLoader(org.apache.dubbo.rpc.Protocol.class).getExtension("injvm")
+     * Protocol protocol = ExtensionLoader.getExtensionLoader(org.apache.dubbo.rpc.Protocol.class).getExtension("injvm")
+     * protocol.export(invoker)
      *
-     * 得到 {@link Protocol} 具体的实现类 {@link InjvmProtocol}，再得到包装类 {@link ProtocolListenerWrapper}，再得到包装类 {@link ProtocolFilterWrapper}，即
+     * 这里得到 {@link Protocol} 具体的实现类 {@link InjvmProtocol}，再得到包装类 {@link ProtocolListenerWrapper}，再得到包装类 {@link ProtocolFilterWrapper}，即
      * ！！！得到包装类 ProtocolFilterWrapper(ProtocolListenerWrapper(InjvmProtocol))
      *
-     * 3.3.1 执行过滤器链
+     * 执行 Protocol#export
      * @see ProtocolFilterWrapper#export(org.apache.dubbo.rpc.Invoker)
      * @see ProtocolFilterWrapper#buildInvokerChain(org.apache.dubbo.rpc.Invoker, java.lang.String, java.lang.String)
-     *
-     * 3.3.2 继续执行
      * @see ProtocolListenerWrapper#export(org.apache.dubbo.rpc.Invoker)
      * @see InjvmProtocol#export(org.apache.dubbo.rpc.Invoker)
      *
@@ -120,6 +127,8 @@ public class ServiceExportTest {
      *
      *
      * 4. 远程发布
+     *
+     * 遍历 registryURL，需要把服务远程发布并注册到 registryURL
      *
      * 4.1 PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString()));
      *
@@ -133,7 +142,7 @@ public class ServiceExportTest {
      * 执行 ProxyFactory$Adaptive#getInvoker，实际执行
      * @see JavassistProxyFactory#getInvoker(java.lang.Object, java.lang.Class, org.apache.dubbo.common.URL)
      *
-     * 这里的返参 Invoker 包含动态生成的 Wrapper 实例（代码见下方），可知本地发布和远程发布的 Wrapper 实例是相同的！
+     * 这里的返参 Invoker 同样是对 Wrapper 实例的方法进行代理，并且本地发布和远程发布的 Wrapper 实例是相同的！
      * 其中的 Wrapper 包装了服务的实现类，跟入参 url 的值无关。
      *
      * 4.2 PROTOCOL.export(wrapperInvoker)
@@ -143,6 +152,7 @@ public class ServiceExportTest {
      * ExtensionLoader.getExtensionLoader(org.apache.dubbo.rpc.Protocol.class).getExtension("registry")
      * ！！！得到包装类 ProtocolFilterWrapper(ProtocolListenerWrapper(RegistryProtocol))
      *
+     * 执行 Protocol#export
      * @see ProtocolFilterWrapper#export(org.apache.dubbo.rpc.Invoker)
      * 满足 UrlUtils.isRegistry(invoker.getUrl())，因而执行下一个
      * @see ProtocolListenerWrapper#export(org.apache.dubbo.rpc.Invoker)
@@ -165,7 +175,6 @@ public class ServiceExportTest {
      * ！！！得到包装类 ProtocolFilterWrapper(ProtocolListenerWrapper(DubboProtocol))
      *
      * 执行 Protocol#export
-     *
      * @see ProtocolFilterWrapper#export(org.apache.dubbo.rpc.Invoker)
      * @see ProtocolFilterWrapper#buildInvokerChain(org.apache.dubbo.rpc.Invoker, java.lang.String, java.lang.String)
      * @see ProtocolListenerWrapper#export(org.apache.dubbo.rpc.Invoker)
@@ -179,7 +188,7 @@ public class ServiceExportTest {
      * 打开服务端端口，建立服务端 Server，返回 DubboProtocolServer
      * @see DubboProtocol#openServer(org.apache.dubbo.common.URL)
      *
-     * 疑问，如果有多个 url 服务发布的情况下，如何避免多次建立服务？
+     * 疑问，如果有多个 dubbo接口 服务发布时，对多个 url 进行遍历的情况下，如何避免多次建立 netty 服务？
      * 在同一台机器上（单网卡），同一个端口上仅允许启动一个服务器实例。若某个端口上已有服务器实例，此时则调用 reset 方法重置服务器的一些配置。
      *
      * @see DubboProtocol#createServer(org.apache.dubbo.common.URL)
