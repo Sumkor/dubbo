@@ -10,8 +10,10 @@ import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
 import org.apache.dubbo.demo.DemoService;
 import org.apache.dubbo.registry.ListenerRegistryWrapper;
 import org.apache.dubbo.registry.integration.RegistryProtocol;
+import org.apache.dubbo.registry.support.AbstractRegistryFactory;
 import org.apache.dubbo.registry.support.FailbackRegistry;
 import org.apache.dubbo.registry.zookeeper.ZookeeperRegistry;
+import org.apache.dubbo.registry.zookeeper.ZookeeperRegistryFactory;
 import org.apache.dubbo.remoting.Transporters;
 import org.apache.dubbo.remoting.exchange.Exchangers;
 import org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger;
@@ -204,8 +206,10 @@ public class ServiceExportTest {
      *
      * 4.3.2 向注册中心注册服务
      *
-     * 根据 URL 加载 Registry 实现类，比如 ZookeeperRegistry
+     * 根据 URL 加载 Registry 实现类，这里由 SPI 得到 ZookeeperRegistry
      * @see RegistryProtocol#getRegistry(org.apache.dubbo.rpc.Invoker)
+     * @see AbstractRegistryFactory#getRegistry(org.apache.dubbo.common.URL)
+     * @see ZookeeperRegistryFactory#createRegistry(org.apache.dubbo.common.URL)
      *
      * 向 zookeeper 注册服务
      * @see RegistryProtocol#register(org.apache.dubbo.common.URL, org.apache.dubbo.common.URL)

@@ -156,7 +156,7 @@ public class RegistryProtocol implements Protocol {
         this.protocol = protocol;
     }
 
-    public void setRegistryFactory(RegistryFactory registryFactory) {
+    public void setRegistryFactory(RegistryFactory registryFactory) { // Dubbo SPI IOC 过程中，实例化 RegistryProtocol 时会调用这里赋值，入参为 RegistryFactory$Adaptive
         this.registryFactory = registryFactory;
     }
 
