@@ -68,7 +68,6 @@ public class ServiceExportTest {
      *
      * 1. 服务发布入口
      * @see DubboBootstrap#start()
-     * @see org.apache.dubbo.config.spring.ServiceBean#exported()
      *
      * 是否配置延迟发布 && 是否已发布 && 是不是已被取消发布，否者发布服务
      * @see org.apache.dubbo.config.ServiceConfig#export()

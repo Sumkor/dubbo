@@ -206,7 +206,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             doExport();
         }
 
-        exported();
+        exported(); // 若集成了Spring，则通知 ServiceBean#exported
     }
 
     public void exported() {
