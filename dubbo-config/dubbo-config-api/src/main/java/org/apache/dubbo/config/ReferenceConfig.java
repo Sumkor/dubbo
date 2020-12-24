@@ -246,7 +246,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         map.put(SIDE_KEY, CONSUMER_SIDE);
 
         ReferenceConfigBase.appendRuntimeParameters(map);
-        if (!ProtocolUtils.isGeneric(generic)) {
+        if (!ProtocolUtils.isGeneric(generic)) { // 检测是否为泛化接口
             String revision = Version.getVersion(interfaceClass, version);
             if (revision != null && revision.length() > 0) {
                 map.put(REVISION_KEY, revision);
@@ -302,7 +302,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
 
         serviceMetadata.getAttachments().putAll(map);
 
-        ref = createProxy(map);
+        ref = createProxy(map); // 创建代理类
 
         serviceMetadata.setTarget(ref);
         serviceMetadata.addAttribute(PROXY_CLASS_REF, ref);
@@ -321,8 +321,8 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private T createProxy(Map<String, String> map) {
         if (shouldJvmRefer(map)) {
-            URL url = new URL(LOCAL_PROTOCOL, LOCALHOST_VALUE, 0, interfaceClass.getName()).addParameters(map);
-            invoker = REF_PROTOCOL.refer(interfaceClass, url);
+            URL url = new URL(LOCAL_PROTOCOL, LOCALHOST_VALUE, 0, interfaceClass.getName()).addParameters(map); // 生成本地引用 URL，协议为 injvm
+            invoker = REF_PROTOCOL.refer(interfaceClass, url); // 构建 InjvmInvoker 实例
             if (logger.isInfoEnabled()) {
                 logger.info("Using injvm service " + interfaceClass.getName());
             }

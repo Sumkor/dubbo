@@ -35,6 +35,12 @@ import org.springframework.context.support.AbstractApplicationContext;
  * Dubbo 服务发布
  * https://dubbo.apache.org/zh/docs/v2.7/dev/source/export-service/
  *
+ * Dubbo 服务导出过程始于 Spring 容器发布刷新事件，Dubbo 在接收到事件后，会立即执行服务导出逻辑。
+ * 整个逻辑大致可分为三个部分，
+ * 第一部分是前置工作，主要用于检查参数，组装 URL。
+ * 第二部分是导出服务，包含导出服务到本地 (JVM)，和导出服务到远程两个过程。
+ * 第三部分是向注册中心注册服务，用于服务发现。
+ *
  *
  * 由于不少关键类是由 dubbo SPI、JavassistProxyFactory 动态生成的，调试过程需要掌握查看动态生成的字节码的技能！
  *

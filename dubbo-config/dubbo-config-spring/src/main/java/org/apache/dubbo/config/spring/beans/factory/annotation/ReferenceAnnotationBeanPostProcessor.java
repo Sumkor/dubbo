@@ -131,7 +131,7 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
          */
         String referenceBeanName = getReferenceBeanName(attributes, injectedType);
 
-        ReferenceBean referenceBean = buildReferenceBeanIfAbsent(referenceBeanName, attributes, injectedType);
+        ReferenceBean referenceBean = buildReferenceBeanIfAbsent(referenceBeanName, attributes, injectedType); // 不存在则创建ReferenceBean
 
         boolean localServiceBean = isLocalServiceBean(referencedBeanName, referenceBean, attributes);
 
