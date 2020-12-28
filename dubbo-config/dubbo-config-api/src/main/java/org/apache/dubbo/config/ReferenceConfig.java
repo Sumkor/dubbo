@@ -237,7 +237,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             bootstrap.init();
         }
 
-        checkAndUpdateSubConfigs();
+        checkAndUpdateSubConfigs(); // 创建和赋值 ConsumerConfig 实例、设置 interfaceClass、设置 ReferenceConfigBase.url 等
 
         checkStubAndLocal(interfaceClass);
         ConfigValidationUtils.checkMock(interfaceClass, this);
@@ -246,13 +246,13 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         map.put(SIDE_KEY, CONSUMER_SIDE);
 
         ReferenceConfigBase.appendRuntimeParameters(map);
-        if (!ProtocolUtils.isGeneric(generic)) { // 检测是否为泛化接口
-            String revision = Version.getVersion(interfaceClass, version);
+        if (!ProtocolUtils.isGeneric(generic)) { // 非泛化接口
+            String revision = Version.getVersion(interfaceClass, version); // 获取版本
             if (revision != null && revision.length() > 0) {
                 map.put(REVISION_KEY, revision);
             }
 
-            String[] methods = Wrapper.getWrapper(interfaceClass).getMethodNames();
+            String[] methods = Wrapper.getWrapper(interfaceClass).getMethodNames(); // 获取接口方法列表
             if (methods.length == 0) {
                 logger.warn("No method found in service interface " + interfaceClass.getName());
                 map.put(METHODS_KEY, ANY_VALUE);
@@ -273,7 +273,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             map.putIfAbsent(METADATA_KEY, REMOTE_METADATA_STORAGE_TYPE);
         }
         Map<String, AsyncMethodInfo> attributes = null;
-        if (CollectionUtils.isNotEmpty(getMethods())) {
+        if (CollectionUtils.isNotEmpty(getMethods())) { // 处理 MethodConfig 实例，该实例包含了事件通知配置，比如 onreturn、onthrow、oninvoke 等
             attributes = new HashMap<>();
             for (MethodConfig methodConfig : getMethods()) {
                 AbstractConfig.appendParameters(map, methodConfig, methodConfig.getName());
@@ -292,7 +292,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             }
         }
 
-        String hostToRegistry = ConfigUtils.getSystemProperty(DUBBO_IP_TO_REGISTRY);
+        String hostToRegistry = ConfigUtils.getSystemProperty(DUBBO_IP_TO_REGISTRY); // 获取服务消费者地址
         if (StringUtils.isEmpty(hostToRegistry)) {
             hostToRegistry = NetUtils.getLocalHost();
         } else if (isInvalidLocalHost(hostToRegistry)) {
@@ -302,7 +302,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
 
         serviceMetadata.getAttachments().putAll(map);
 
-        ref = createProxy(map); // 创建代理类
+        ref = createProxy(map); // 创建代理类。重要代码！！
 
         serviceMetadata.setTarget(ref);
         serviceMetadata.addAttribute(PROXY_CLASS_REF, ref);
@@ -328,22 +328,22 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             }
         } else {
             urls.clear();
-            if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
-                String[] us = SEMICOLON_SPLIT_PATTERN.split(url);
+            if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address. // url 不为空，表明用户可能想进行点对点调用
+                String[] us = SEMICOLON_SPLIT_PATTERN.split(url); // 当需要配置多个 url 时，可用分号进行分割，这里会进行切分
                 if (us != null && us.length > 0) {
                     for (String u : us) {
                         URL url = URL.valueOf(u);
                         if (StringUtils.isEmpty(url.getPath())) {
                             url = url.setPath(interfaceName);
                         }
-                        if (UrlUtils.isRegistry(url)) {
-                            urls.add(url.addParameterAndEncoded(REFER_KEY, StringUtils.toQueryString(map)));
+                        if (UrlUtils.isRegistry(url)) { // 检测 url 协议是否为 registry，若是，表明用户想使用指定的注册中心
+                            urls.add(url.addParameterAndEncoded(REFER_KEY, StringUtils.toQueryString(map))); // 将 map 转换为查询字符串，并作为 refer 参数的值添加到 url 中
                         } else {
                             urls.add(ClusterUtils.mergeUrl(url, map));
                         }
                     }
                 }
-            } else { // assemble URL from register center's configuration
+            } else { // assemble URL from register center's configuration // 加载注册中心 url
                 // if protocols not injvm checkRegistry
                 if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())) {
                     checkRegistry();
@@ -357,19 +357,19 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                             urls.add(u.addParameterAndEncoded(REFER_KEY, StringUtils.toQueryString(map)));
                         }
                     }
-                    if (urls.isEmpty()) {
+                    if (urls.isEmpty()) { // 未配置注册中心，抛出异常
                         throw new IllegalStateException("No such any registry to reference " + interfaceName + " on the consumer " + NetUtils.getLocalHost() + " use dubbo version " + Version.getVersion() + ", please config <dubbo:registry address=\"...\" /> to your spring config.");
                     }
                 }
             }
 
-            if (urls.size() == 1) {
+            if (urls.size() == 1) { // 单个注册中心或服务提供者(服务直连)
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
-            } else {
+            } else { // 存在多个注册中心或服务直连 url，此时先根据 url 构建 Invoker。然后再通过 Cluster 合并多个 Invoker
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
                 for (URL url : urls) {
-                    invokers.add(REF_PROTOCOL.refer(interfaceClass, url));
+                    invokers.add(REF_PROTOCOL.refer(interfaceClass, url)); // 获取所有的 Invoker。重要代码！！
                     if (UrlUtils.isRegistry(url)) {
                         registryURL = url; // use last registry url
                     }
@@ -378,7 +378,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                     // for multi-subscription scenario, use 'zone-aware' policy by default
                     String cluster = registryURL.getParameter(CLUSTER_KEY, ZoneAwareCluster.NAME);
                     // The invoker wrap sequence would be: ZoneAwareClusterInvoker(StaticDirectory) -> FailoverClusterInvoker(RegistryDirectory, routing happens here) -> Invoker
-                    invoker = Cluster.getCluster(cluster, false).join(new StaticDirectory(registryURL, invokers));
+                    invoker = Cluster.getCluster(cluster, false).join(new StaticDirectory(registryURL, invokers)); // 创建 StaticDirectory 实例，并由 Cluster 对多个 Invoker 进行合并
                 } else { // not a registry url, must be direct invoke.
                     String cluster = CollectionUtils.isNotEmpty(invokers)
                             ? (invokers.get(0).getUrl() != null ? invokers.get(0).getUrl().getParameter(CLUSTER_KEY, ZoneAwareCluster.NAME) : Cluster.DEFAULT)
@@ -401,7 +401,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             URL consumerURL = new URL(CONSUMER_PROTOCOL, map.remove(REGISTER_IP_KEY), 0, map.get(INTERFACE_KEY), map);
             metadataService.publishServiceDefinition(consumerURL);
         }
-        // create service proxy
+        // create service proxy // 生成代理类
         return (T) PROXY_FACTORY.getProxy(invoker, ProtocolUtils.isGeneric(generic));
     }
 
@@ -435,13 +435,13 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                 setRegistryIds(consumer.getRegistryIds());
             }
         }
-        // get consumer's global configuration
+        // get consumer's global configuration // ConsumerConfig实例不存在则创建，并赋值
         checkDefault();
         this.refresh();
         if (getGeneric() == null && getConsumer() != null) {
             setGeneric(getConsumer().getGeneric());
         }
-        if (ProtocolUtils.isGeneric(generic)) {
+        if (ProtocolUtils.isGeneric(generic)) { // 检测是否为泛化接口
             interfaceClass = GenericService.class;
         } else {
             try {
@@ -471,7 +471,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                 null,
                 serviceMetadata);
 
-        resolveFile();
+        resolveFile(); // 从系统属性或配置文件中加载与接口名相对应的配置，并将解析结果赋值给ReferenceConfigBase.url
         ConfigValidationUtils.validateReferenceConfig(this);
         postProcessConfig();
     }

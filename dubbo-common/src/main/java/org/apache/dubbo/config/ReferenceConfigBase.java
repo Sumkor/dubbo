@@ -246,7 +246,7 @@ public abstract class ReferenceConfigBase<T> extends AbstractReferenceConfig {
             }
         }
         if (resolve != null && resolve.length() > 0) {
-            url = resolve;
+            url = resolve; // 该 url 一般是用于点对点调用
             if (logger.isWarnEnabled()) {
                 if (resolveFile != null) {
                     logger.warn("Using default dubbo resolve file " + resolveFile + " replace " + interfaceName + "" + resolve + " to p2p invoke remote service.");
