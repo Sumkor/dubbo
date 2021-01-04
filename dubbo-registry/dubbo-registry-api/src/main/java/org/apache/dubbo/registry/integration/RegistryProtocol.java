@@ -463,7 +463,7 @@ public class RegistryProtocol implements Protocol {
         URL subscribeUrl = new URL(CONSUMER_PROTOCOL, parameters.remove(REGISTER_IP_KEY), 0, type.getName(), parameters);
         if (directory.isShouldRegister()) {
             directory.setRegisteredConsumerUrl(subscribeUrl);
-            registry.register(directory.getRegisteredConsumerUrl());
+            registry.register(directory.getRegisteredConsumerUrl()); // 注册 registeredConsumerUrl
         }
         directory.buildRouterChain(subscribeUrl);
         directory.subscribe(toSubscribeUrl(subscribeUrl));

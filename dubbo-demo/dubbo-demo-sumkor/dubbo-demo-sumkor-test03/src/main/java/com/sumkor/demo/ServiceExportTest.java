@@ -78,6 +78,9 @@ public class ServiceExportTest {
      * 是否配置延迟发布 && 是否已发布 && 是不是已被取消发布，否者发布服务
      * @see org.apache.dubbo.config.ServiceConfig#export()
      *
+     * 实例化 ProviderConfig、ProtocolConfig、RegistryConfig、interfaceClass 等，猜测各种 config 只是用于构造 url
+     * @see ServiceConfig#checkAndUpdateSubConfigs()
+     *
      * 观察 ServiceConfig 实例的变化，注意它重写 toString 方法
      * @see AbstractConfig#toString()
      *

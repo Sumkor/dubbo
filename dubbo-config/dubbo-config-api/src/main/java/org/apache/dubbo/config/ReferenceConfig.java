@@ -363,7 +363,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                 }
             }
 
-            if (urls.size() == 1) { // 单个注册中心或服务提供者(服务直连)
+            if (urls.size() == 1) { // 单个注册中心或服务直连 url
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
             } else { // 存在多个注册中心或服务直连 url，此时先根据 url 构建 Invoker。然后再通过 Cluster 合并多个 Invoker
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();

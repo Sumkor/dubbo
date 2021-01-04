@@ -40,7 +40,9 @@ public class Application {
     private static void runWithBootstrap() {
         ReferenceConfig<DemoService> reference = new ReferenceConfig<>();
         reference.setInterface(DemoService.class);
-        reference.setGeneric("true");
+//        reference.setGeneric("true");
+        reference.setGeneric("false");// 不使用泛化
+//        reference.setInjvm(true);// 本地服务引入
 
         DubboBootstrap bootstrap = DubboBootstrap.getInstance();
         bootstrap.application(new ApplicationConfig("dubbo-demo-api-consumer"))
