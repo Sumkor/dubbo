@@ -466,7 +466,7 @@ public class RegistryProtocol implements Protocol {
             registry.register(directory.getRegisteredConsumerUrl()); // 注册 registeredConsumerUrl
         }
         directory.buildRouterChain(subscribeUrl);
-        directory.subscribe(toSubscribeUrl(subscribeUrl));
+        directory.subscribe(toSubscribeUrl(subscribeUrl)); // 订阅 subscribeUrl
 
         Invoker<T> invoker = cluster.join(directory);
         List<RegistryProtocolListener> listeners = findRegistryProtocolListeners(url);
