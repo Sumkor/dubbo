@@ -22,7 +22,6 @@ import org.apache.dubbo.config.RegistryConfig;
 import org.apache.dubbo.config.bootstrap.DubboBootstrap;
 import org.apache.dubbo.config.utils.ReferenceConfigCache;
 import org.apache.dubbo.demo.DemoService;
-import org.apache.dubbo.rpc.service.GenericService;
 
 public class Application {
     public static void main(String[] args) {
@@ -30,6 +29,11 @@ public class Application {
             runWithRefer();
         } else {
             runWithBootstrap();
+        }
+        try {
+            Thread.sleep(10000000L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -55,10 +59,10 @@ public class Application {
         System.out.println(message);
 
         // generic invoke
-        GenericService genericService = (GenericService) demoService;
-        Object genericInvokeResult = genericService.$invoke("sayHello", new String[] { String.class.getName() },
-                new Object[] { "dubbo generic invoke" });
-        System.out.println(genericInvokeResult);
+//        GenericService genericService = (GenericService) demoService;
+//        Object genericInvokeResult = genericService.$invoke("sayHello", new String[] { String.class.getName() },
+//                new Object[] { "dubbo generic invoke" });
+//        System.out.println(genericInvokeResult);
     }
 
     private static void runWithRefer() {

@@ -1,16 +1,19 @@
 package com.sumkor.demo;
 
 import com.alibaba.spring.beans.factory.annotation.AbstractAnnotationBeanPostProcessor;
+import org.apache.dubbo.common.bytecode.Proxy;
 import org.apache.dubbo.config.ReferenceConfig;
 import org.apache.dubbo.config.spring.ReferenceBean;
 import org.apache.dubbo.config.spring.beans.factory.annotation.AnnotatedInterfaceConfigBeanBuilder;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ReferenceAnnotationBeanPostProcessor;
+import org.apache.dubbo.config.utils.ConfigValidationUtils;
 import org.apache.dubbo.registry.integration.RegistryDirectory;
 import org.apache.dubbo.registry.integration.RegistryProtocol;
 import org.apache.dubbo.registry.support.AbstractRegistry;
 import org.apache.dubbo.registry.support.FailbackRegistry;
 import org.apache.dubbo.registry.zookeeper.ZookeeperRegistry;
 import org.apache.dubbo.rpc.Protocol$Adaptive;
+import org.apache.dubbo.rpc.ProxyFactory$Adaptive;
 import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.interceptor.ConsumerContextClusterInterceptor;
 import org.apache.dubbo.rpc.cluster.support.FailoverCluster;
@@ -21,7 +24,10 @@ import org.apache.dubbo.rpc.protocol.AbstractProtocol;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
+import org.apache.dubbo.rpc.proxy.AbstractProxyFactory;
 import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
+import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
+import org.apache.dubbo.rpc.proxy.wrapper.StubProxyFactoryWrapper;
 import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
 
 /**
@@ -33,6 +39,21 @@ import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFact
  * 第二个是在 ReferenceBean 对应的服务被注入到其他类中时引用。
  * 这两个引用服务的时机区别在于，第一个是饿汉式的，第二个是懒汉式的。
  * 默认情况下，Dubbo 使用懒汉式引用服务。如果需要使用饿汉式，可通过配置 <dubbo:reference> 的 init 属性开启。
+ *
+ *
+ * 服务引用的大致原理
+ *
+ * 按照惯例，在进行具体工作之前，需先进行配置检查与收集工作。
+ * 根据收集到的信息决定服务用的方式，有三种：
+ * 第一种是引用本地 (JVM) 服务；
+ * 第二是通过直连方式引用远程服务；
+ * 第三是通过注册中心引用远程服务。
+ * 不管是哪种引用方式，最后都会得到一个 Invoker 实例。
+ * 如果有多个注册中心，多个服务提供者，这个时候会得到一组 Invoker 实例，此时需要通过集群管理类 Cluster 将多个 Invoker 合并成一个实例。
+ * Invoker 实例已经具备调用本地或远程服务的能力了，但并不能将此实例暴露给用户使用，这会对用户业务代码造成侵入。
+ * 此时框架还需要通过代理工厂类 (ProxyFactory) 为服务接口生成代理类，并让代理类去调用 Invoker 逻辑。避免了 Dubbo 框架代码对业务代码的侵入，同时也让框架更容易使用。
+ *
+ * Invoker 是 Dubbo 的核心模型，代表一个可执行体。在服务提供方，Invoker 用于调用服务提供类。在服务消费方，Invoker 用于执行远程调用。
  *
  * @author Sumkor
  * @since 2020/12/23
@@ -71,21 +92,24 @@ public class ServiceReferenceTest {
      * @see ReferenceConfig#checkAndUpdateSubConfigs()
      *
      *
-     * 3. 创建代理类
+     * 3. 创建代理类！！！！！！！！
      * @see ReferenceConfig#createProxy(java.util.Map)
      *
      * 入参 map 内容：
      * {"side":"consumer","application":"dubbo-demo-api-consumer","register.ip":"172.20.3.201","release":"","sticky":"false","dubbo":"2.0.2","pid":"4668","interface":"org.apache.dubbo.demo.DemoService","generic":"true","timestamp":"1609727434950"}
      *
-     * 先看结果，得到的代理类，其中包含了 {@link InvokerInvocationHandler} 实例。
+     * 先看结果，得到的代理类 Proxy0，其中包含了 {@link InvokerInvocationHandler} 实例。
      * 如果在 @DubboReference 或 ReferenceConfig.setGeneric 配置了使用泛化，
      * 则得到
      * serviceInterfaceClass = org.apache.dubbo.rpc.service.GenericService
      * 否则
      * serviceInterfaceClass = org.apache.dubbo.demo.DemoService 具体的接口
      *
+     * 注意，进入 createProxy 的时候，urls 和 url 都为空！
      *
-     * ---- 非泛化 ----
+     *
+     * ------------ 非泛化 ------------
+     *
      *
      * 3.1 本地服务引入
      *
@@ -115,6 +139,9 @@ public class ServiceReferenceTest {
      *
      * 3.2.1 构造 url 进行 SPI
      *
+     * 通过 referenceConfig 构造 url
+     * @see ConfigValidationUtils#loadRegistries(org.apache.dubbo.config.AbstractInterfaceConfig, boolean)
+     *
      * 不考虑点对点的远程服务引入
      * 处理之前：
      *     url = registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-consumer&dubbo=2.0.2&pid=13116&registry=zookeeper&timestamp=1609745474785
@@ -125,7 +152,7 @@ public class ServiceReferenceTest {
      * 执行：
      * invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
      *
-     * 通过 SPI ，进入
+     * 通过 SPI，进入
      * @see Protocol$Adaptive#refer(java.lang.Class, org.apache.dubbo.common.URL)
      * 执行
      * ExtensionLoader.getExtensionLoader(org.apache.dubbo.rpc.Protocol.class).getExtension("registry");
@@ -157,18 +184,23 @@ public class ServiceReferenceTest {
      *    subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
      *    registeredConsumerUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=consumers&check=false&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
      *
-     * A. 把 registeredConsumerUrl 注册到 zk 上，不知道是做啥
+     * A. 注册服务消费者，在 consumers 目录下新节点
+     *
+     * 把 registeredConsumerUrl 注册到 zk 上，不知道有什么用
      * @see ZookeeperRegistry#doRegister(org.apache.dubbo.common.URL)
      *
-     * B. 对 subscribeUrl 添加参数，并进行订阅
+     * B. 订阅 providers、configurators、routers 等节点数据
+     *
+     * 对 subscribeUrl 添加参数，并进行订阅
      *     subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
      * @see RegistryDirectory#subscribe(org.apache.dubbo.common.URL)
      * @see ZookeeperRegistry#doSubscribe(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener)
      * @see FailbackRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
      * @see AbstractRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
      *
-     * C. 使用 cluster 和 directory 构造 invoker：
+     * C. 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个
      *
+     * 使用 cluster 和 directory 构造 invoker：
      * Invoker<T> invoker = cluster.join(directory);
      *
      * 这里的 cluster 为 MockClusterWrapper(FailoverCluster)，而 directory 则是 RegistryDirectory
@@ -176,28 +208,129 @@ public class ServiceReferenceTest {
      * @see MockClusterWrapper#join(org.apache.dubbo.rpc.cluster.Directory)
      *
      * @see AbstractCluster#join(org.apache.dubbo.rpc.cluster.Directory)
-     * @see FailoverCluster#doJoin(org.apache.dubbo.rpc.cluster.Directory)
-     * 得到 {@link FailoverClusterInvoker}
-     * @see AbstractCluster#buildClusterInterceptors(org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker, java.lang.String)
-     * 得到拦截器 {@link ConsumerContextClusterInterceptor}
+     * @see FailoverCluster#doJoin(org.apache.dubbo.rpc.cluster.Directory) 得到 {@link FailoverClusterInvoker}
+     * @see AbstractCluster#buildClusterInterceptors(org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker, java.lang.String) 得到拦截器 {@link ConsumerContextClusterInterceptor}
      *
-     * 最后得到 invoker 为 MockClusterInvoker 对象实例，其中
-     * directory 属性 RegistryDirectory 实例，
-     * invoker 属性是 AbstractCluster.InterceptorInvokerNode 实例，该实例包含了 FailoverClusterInvoker 和 ConsumerContextClusterInterceptor 对象
+     * 最后得到 invoker 为 MockClusterInvoker 对象实例，其中：
+     * directory 属性 RegistryDirectory 实例，该对象包含远程服务接口信息，实例化过程见 {@link RegistryProtocol#doRefer}；
+     * invoker 属性是 AbstractCluster.InterceptorInvokerNode 实例，该实例包含了 FailoverClusterInvoker 和 ConsumerContextClusterInterceptor 对象；
      *
-     *
-     * ---- 泛化 ----
-     *
-     * 3.1 本地服务引入
-     *
-     * 3.2 远程服务引入
+     * Invoker 创建完毕后，接下来要做的事情是为服务接口生成代理对象。有了代理对象，即可进行远程调用。
      *
      *
      * 3.3 生成代理
      *
      * PROXY_FACTORY.getProxy(invoker, ProtocolUtils.isGeneric(generic));
      *
+     * 3.3.1 通过 url 进行 SPI
+     *
+     * @see ProxyFactory$Adaptive#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
+     *
+     * 这里
+     *     url = invoker.getUrl();
+     *     url = zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?anyhost=true&application=dubbo-demo-api-consumer&check=false&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=9984&register.ip=172.20.3.201&release=&remote.application=dubbo-demo-api-provider&side=consumer&sticky=false&timestamp=1609816826065
+     *     String string = url.getParameter("proxy", "javassist");// javassist
+     *     ProxyFactory proxyFactory = (ProxyFactory) ExtensionLoader.getExtensionLoader(ProxyFactory.class).getExtension(string);
+     * ！！！得到包装类
+     * StubProxyFactoryWrapper(JavassistProxyFactory)
+     *
+     * 3.3.2 执行 proxyFactory#getProxy
+     *
+     * @see StubProxyFactoryWrapper#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
+     *
+     * @see AbstractProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
+     * 这里是非泛化，一波操作之后，得到 interfaces 集合如下：
+     * [interface com.alibaba.dubbo.rpc.service.EchoService, interface org.apache.dubbo.rpc.service.Destroyable, interface org.apache.dubbo.demo.DemoService]
+     *
+     * 3.3.3 生成 proxy 类并实例化
+     *
+     * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
+     * 这里入参 invoker 为 MockClusterInvoker 对象实例，interfaces 为上一步得到的接口类集合
+     *
+     * @see Proxy#getProxy(java.lang.ClassLoader, java.lang.Class[])
+     *
+     * 将入参 interfaces 集合处理为一下字符串
+     * String key = com.alibaba.dubbo.rpc.service.EchoService;org.apache.dubbo.rpc.service.Destroyable;org.apache.dubbo.demo.DemoService;
+     *
+     * 生成的代理类类名如下，代码见下方。
+     * org.apache.dubbo.common.bytecode.Proxy0
+     *
+     * 将代理类实例化，并存入 cache 缓存：
+     * proxy = Proxy0.class.newInstance()
+     * cache.put(key, new WeakReference<Proxy>(proxy));
+     *
+     * 3.3.3 执行 proxy 类实例的 newInstance 方法
+     *
+     * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
+     * proxy.newInstance(new InvokerInvocationHandler(invoker));
+     *
+     * 可见代理类只是对 InvokerInvocationHandler 对象包了一层，没有什么特殊逻辑。
+     *
+     * 3.3.4 得到 proxy 实例之后，如果是非泛化接口，进行下一步处理
+     *
+     * @see StubProxyFactoryWrapper#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
+     *
+     * 由于 invoker.getUrl().getParameter(STUB_KEY, url.getParameter(LOCAL_KEY))，得到为空。
+     * 即 url 中没有参数 stub 和 local，因此直接跳出了。
+     *
+     * 至此，生成代理类的代码结束。
+     *
      */
 
+    /**
+     * @see Proxy#getProxy(java.lang.ClassLoader, java.lang.Class[])
+     *
+     * 动态生成 org.apache.dubbo.common.bytecode.Proxy0 的代码如下：
+     *
+    package org.apache.dubbo.common.bytecode;
 
+    import com.alibaba.dubbo.rpc.service.EchoService;
+    import java.lang.reflect.InvocationHandler;
+    import java.lang.reflect.Method;
+    import java.util.concurrent.CompletableFuture;
+    import org.apache.dubbo.common.bytecode.ClassGenerator;
+    import org.apache.dubbo.demo.DemoService;
+    import org.apache.dubbo.rpc.service.Destroyable;
+
+    public class proxy0
+    implements ClassGenerator.DC,
+    Destroyable,
+    EchoService,
+    DemoService {
+    public static Method[] methods;
+    private InvocationHandler handler;
+
+    public proxy0(InvocationHandler invocationHandler) {
+    this.handler = invocationHandler;
+    }
+
+    public proxy0() {
+    }
+
+    public String sayHello(String string) {
+    Object[] arrobject = new Object[]{string};
+    Object object = this.handler.invoke(this, methods[0], arrobject);
+    return (String)object;
+    }
+
+    public CompletableFuture sayHelloAsync(String string) {
+    Object[] arrobject = new Object[]{string};
+    Object object = this.handler.invoke(this, methods[1], arrobject);
+    return (CompletableFuture)object;
+    }
+
+    public Object $echo(Object object) {
+    Object[] arrobject = new Object[]{object};
+    Object object2 = this.handler.invoke(this, methods[2], arrobject);
+    return object2;
+    }
+
+    public void $destroy() {
+    Object[] arrobject = new Object[]{};
+    Object object = this.handler.invoke(this, methods[3], arrobject);
+    }
+    }
+
+     *
+     */
 }

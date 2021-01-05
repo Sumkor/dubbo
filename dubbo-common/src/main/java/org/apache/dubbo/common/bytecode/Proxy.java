@@ -79,7 +79,7 @@ public abstract class Proxy {
         }
 
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < ics.length; i++) {
+        for (int i = 0; i < ics.length; i++) { // 遍历接口列表
             String itf = ics[i].getName();
             if (!ics[i].isInterface()) {
                 throw new RuntimeException(itf + " is not a interface.");
@@ -98,17 +98,17 @@ public abstract class Proxy {
             sb.append(itf).append(';');
         }
 
-        // use interface class name list as key.
+        // use interface class name list as key. // 使用拼接后的接口名作为 key
         String key = sb.toString();
 
         // get cache by class loader.
         final Map<String, Object> cache;
         synchronized (PROXY_CACHE_MAP) {
-            cache = PROXY_CACHE_MAP.computeIfAbsent(cl, k -> new HashMap<>());
+            cache = PROXY_CACHE_MAP.computeIfAbsent(cl, k -> new HashMap<>());// 如果 PROXY_CACHE_MAP 中不存在key=cl，则存入key=cl，value=new HashMap()，并返回value
         }
 
         Proxy proxy = null;
-        synchronized (cache) {
+        synchronized (cache) { // 先从缓存中获取，若取不到才进行动态生成
             do {
                 Object value = cache.get(key);
                 if (value instanceof Reference<?>) {
@@ -186,7 +186,7 @@ public abstract class Proxy {
             }
 
             // create ProxyInstance class.
-            String pcn = pkg + ".proxy" + id;
+            String pcn = pkg + ".proxy" + id; // 构建接口代理类名称：pkg + ".proxy" + id，比如 org.apache.dubbo.common.bytecode.Proxy0
             ccp.setClassName(pcn);
             ccp.addField("public static java.lang.reflect.Method[] methods;");
             ccp.addField("private " + InvocationHandler.class.getName() + " handler;");
@@ -203,7 +203,7 @@ public abstract class Proxy {
             ccm.setSuperClass(Proxy.class);
             ccm.addMethod("public Object newInstance(" + InvocationHandler.class.getName() + " h){ return new " + pcn + "($1); }");
             Class<?> pc = ccm.toClass();
-            proxy = (Proxy) pc.newInstance();
+            proxy = (Proxy) pc.newInstance(); // 实例化
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -220,7 +220,7 @@ public abstract class Proxy {
                 if (proxy == null) {
                     cache.remove(key);
                 } else {
-                    cache.put(key, new WeakReference<Proxy>(proxy));
+                    cache.put(key, new WeakReference<Proxy>(proxy)); // 放入缓存
                 }
                 cache.notifyAll();
             }

@@ -31,6 +31,7 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
 
     /**
      * 使用 Javassist 动态生成代理并实例化
+     * 生成 Proxy 子类（Proxy 是抽象类）。并调用 Proxy 子类的 newInstance 方法创建 Proxy 实例
      */
     @Override
     @SuppressWarnings("unchecked")
@@ -40,7 +41,7 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
 
     /**
      * 使用 Javassist 动态生成 Wrapper
-     * AbstractProxyInvoker 类实现 Invoker，通过调用 invoke() => doInvoke() => wrapper.invokeMethod()实现调用
+     * 返回 Invoker 为 AbstractProxyInvoker 类实例，其作用是将 Invoker.invoke() 方法调用请求转发给 wrapper.invokeMethod()
      */
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {

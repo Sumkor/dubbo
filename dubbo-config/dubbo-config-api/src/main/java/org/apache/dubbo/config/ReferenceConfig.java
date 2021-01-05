@@ -239,7 +239,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
 
         checkAndUpdateSubConfigs(); // 创建和赋值 ConsumerConfig 实例、设置 interfaceClass、设置 ReferenceConfigBase.url 等
 
-        checkStubAndLocal(interfaceClass);
+        checkStubAndLocal(interfaceClass); // 校验 local 和 stub，它们用于配置本地存根。本地存根用于作调用前参数校验、缓存、调用失败容错处理等。
         ConfigValidationUtils.checkMock(interfaceClass, this);
 
         Map<String, String> map = new HashMap<String, String>();
@@ -306,6 +306,8 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
 
         serviceMetadata.setTarget(ref);
         serviceMetadata.addAttribute(PROXY_CLASS_REF, ref);
+
+        // ConsumerModel 表示服务消费者模型，此对象中存储了与服务消费者相关的信息。每个被引入的服务对应一个 ConsumerModel。
         ConsumerModel consumerModel = repository.lookupReferredService(serviceMetadata.getServiceKey());
         consumerModel.setProxyObject(ref);
         consumerModel.init(attributes);
@@ -347,7 +349,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                 // if protocols not injvm checkRegistry
                 if (!LOCAL_PROTOCOL.equalsIgnoreCase(getProtocol())) {
                     checkRegistry();
-                    List<URL> us = ConfigValidationUtils.loadRegistries(this, false);
+                    List<URL> us = ConfigValidationUtils.loadRegistries(this, false); // 通过 referenceConfig 构造 url
                     if (CollectionUtils.isNotEmpty(us)) {
                         for (URL u : us) {
                             URL monitorUrl = ConfigValidationUtils.loadMonitor(this, u);
@@ -364,12 +366,12 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             }
 
             if (urls.size() == 1) { // 单个注册中心或服务直连 url
-                invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
+                invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0)); // 调用 RegistryProtocol 的 refer 构建 Invoker 实例
             } else { // 存在多个注册中心或服务直连 url，此时先根据 url 构建 Invoker。然后再通过 Cluster 合并多个 Invoker
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
                 for (URL url : urls) {
-                    invokers.add(REF_PROTOCOL.refer(interfaceClass, url)); // 获取所有的 Invoker。重要代码！！
+                    invokers.add(REF_PROTOCOL.refer(interfaceClass, url)); // 获取所有的 Invoker
                     if (UrlUtils.isRegistry(url)) {
                         registryURL = url; // use last registry url
                     }
@@ -471,7 +473,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                 null,
                 serviceMetadata);
 
-        resolveFile(); // 从系统属性或配置文件中加载与接口名相对应的配置，并将解析结果赋值给ReferenceConfigBase.url
+        resolveFile(); // 从系统属性或配置文件中加载与接口名相对应的配置，并将解析结果赋值给ReferenceConfigBase.url，用于点对点调用
         ConfigValidationUtils.validateReferenceConfig(this);
         postProcessConfig();
     }

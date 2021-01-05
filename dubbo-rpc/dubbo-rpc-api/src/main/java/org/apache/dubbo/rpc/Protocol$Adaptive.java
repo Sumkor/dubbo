@@ -1,4 +1,17 @@
+/*
+ * Decompiled with CFR.
+ *
+ * Could not load the following classes:
+ *  org.apache.dubbo.common.URL
+ *  org.apache.dubbo.common.extension.ExtensionLoader
+ *  org.apache.dubbo.rpc.Exporter
+ *  org.apache.dubbo.rpc.Invoker
+ *  org.apache.dubbo.rpc.Protocol
+ *  org.apache.dubbo.rpc.RpcException
+ */
 package org.apache.dubbo.rpc;
+
+import org.apache.dubbo.common.extension.ExtensionLoader;
 
 /**
  * SPI 自动生成的代码
@@ -7,9 +20,6 @@ package org.apache.dubbo.rpc;
  * @author Sumkor
  * @since 2020/12/21
  */
-
-import org.apache.dubbo.common.extension.ExtensionLoader;
-
 public class Protocol$Adaptive implements org.apache.dubbo.rpc.Protocol {
     public void destroy() {
         throw new UnsupportedOperationException("The method public abstract void org.apache.dubbo.rpc.Protocol.destroy() of interface org.apache.dubbo.rpc.Protocol is not adaptive method!");

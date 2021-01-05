@@ -66,7 +66,7 @@ public class StubProxyFactoryWrapper implements ProxyFactory {
         T proxy = proxyFactory.getProxy(invoker, generic);
         if (GenericService.class != invoker.getInterface()) {
             URL url = invoker.getUrl();
-            String stub = url.getParameter(STUB_KEY, url.getParameter(LOCAL_KEY));
+            String stub = url.getParameter(STUB_KEY, url.getParameter(LOCAL_KEY)); // 获取 url 中的 stub 或 local 参数，进行本地存根处理
             if (ConfigUtils.isNotEmpty(stub)) {
                 Class<?> serviceType = invoker.getInterface();
                 if (ConfigUtils.isDefault(stub)) {
