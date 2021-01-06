@@ -22,6 +22,7 @@ import org.apache.dubbo.config.RegistryConfig;
 import org.apache.dubbo.config.bootstrap.DubboBootstrap;
 import org.apache.dubbo.config.utils.ReferenceConfigCache;
 import org.apache.dubbo.demo.DemoService;
+import org.apache.dubbo.rpc.service.GenericService;
 
 public class Application {
     public static void main(String[] args) {
@@ -44,8 +45,8 @@ public class Application {
     private static void runWithBootstrap() {
         ReferenceConfig<DemoService> reference = new ReferenceConfig<>();
         reference.setInterface(DemoService.class);
-//        reference.setGeneric("true");
-        reference.setGeneric("false");// 不使用泛化
+        reference.setGeneric("true");
+//        reference.setGeneric("false");// 不使用泛化
 //        reference.setInjvm(true);// 本地服务引入
 
         DubboBootstrap bootstrap = DubboBootstrap.getInstance();
@@ -59,10 +60,10 @@ public class Application {
         System.out.println(message);
 
         // generic invoke
-//        GenericService genericService = (GenericService) demoService;
-//        Object genericInvokeResult = genericService.$invoke("sayHello", new String[] { String.class.getName() },
-//                new Object[] { "dubbo generic invoke" });
-//        System.out.println(genericInvokeResult);
+        GenericService genericService = (GenericService) demoService;
+        Object genericInvokeResult = genericService.$invoke("sayHello", new String[] { String.class.getName() },
+                new Object[] { "dubbo generic invoke" });
+        System.out.println(genericInvokeResult);
     }
 
     private static void runWithRefer() {

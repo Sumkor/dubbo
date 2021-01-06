@@ -107,7 +107,9 @@ public class ServiceReferenceTest {
      *
      * 注意，进入 createProxy 的时候，urls 和 url 都为空！
      *
-     *
+     */
+
+    /**
      * ------------ 非泛化 ------------
      *
      *
@@ -244,7 +246,7 @@ public class ServiceReferenceTest {
      *
      * @see AbstractProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
      * 这里是非泛化，一波操作之后，得到 interfaces 集合如下：
-     * [interface com.alibaba.dubbo.rpc.service.EchoService, interface org.apache.dubbo.rpc.service.Destroyable, interface org.apache.dubbo.demo.DemoService]
+     * interfaces = [interface com.alibaba.dubbo.rpc.service.EchoService, interface org.apache.dubbo.rpc.service.Destroyable, interface org.apache.dubbo.demo.DemoService]
      *
      * 3.3.3 生成 proxy 类并实例化
      *
@@ -282,9 +284,47 @@ public class ServiceReferenceTest {
      */
 
     /**
+     * ------------ 泛化 ------------
+     *
+     *
+     * 3.1 本地服务引入
+     *
+     *
+     * 3.2 远程服务引入
+     *
+     * @see ReferenceConfig#createProxy(java.util.Map)
+     *
+     *     url = registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-consumer&dubbo=2.0.2&pid=17336&registry=zookeeper&timestamp=1609915249805
+     *     refer = application=dubbo-demo-api-consumer&dubbo=2.0.2&generic=true&interface=org.apache.dubbo.demo.DemoService&pid=17336&register.ip=172.20.3.201&side=consumer&sticky=false&timestamp=1609915206947
+     * 拼接成：
+     *     url = registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-consumer&dubbo=2.0.2&pid=17336&refer=application%3Ddubbo-demo-api-consumer%26dubbo%3D2.0.2%26generic%3Dtrue%26interface%3Dorg.apache.dubbo.demo.DemoService%26pid%3D17336%26register.ip%3D172.20.3.201%26side%3Dconsumer%26sticky%3Dfalse%26timestamp%3D1609915206947&registry=zookeeper&timestamp=1609915249805
+     *
+     * 进行 SPI：
+     * @see RegistryProtocol#refer(java.lang.Class, org.apache.dubbo.common.URL)
+     * @see RegistryProtocol#doRefer(org.apache.dubbo.rpc.cluster.Cluster, org.apache.dubbo.registry.Registry, java.lang.Class, org.apache.dubbo.common.URL)
+     *
+     *     type = org.apache.dubbo.rpc.service.GenericService
+     *     url = zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-consumer&dubbo=2.0.2&pid=17336&refer=application%3Ddubbo-demo-api-consumer%26dubbo%3D2.0.2%26generic%3Dtrue%26interface%3Dorg.apache.dubbo.demo.DemoService%26pid%3D17336%26register.ip%3D172.20.3.201%26side%3Dconsumer%26sticky%3Dfalse%26timestamp%3D1609915206947&timestamp=1609915249805
+     *     registeredConsumerUrl = consumer://172.20.3.201/org.apache.dubbo.rpc.service.GenericService?application=dubbo-demo-api-consumer&category=consumers&check=false&dubbo=2.0.2&generic=true&interface=org.apache.dubbo.demo.DemoService&pid=17336&side=consumer&sticky=false&timestamp=1609915206947
+     *     subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.rpc.service.GenericService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=true&interface=org.apache.dubbo.demo.DemoService&pid=17336&side=consumer&sticky=false&timestamp=1609915206947
+     *
+     * 3.3 生成代理
+     *
+     * @see ReferenceConfig#createProxy(java.util.Map)
+     * @see AbstractProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
+     * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
+     *
+     * interfaces = [interface org.apache.dubbo.demo.DemoService, interface org.apache.dubbo.rpc.service.GenericService, interface com.alibaba.dubbo.rpc.service.EchoService, interface org.apache.dubbo.rpc.service.Destroyable]
+     *
+     * 生成的代理类类名如下，代码见下方。
+     * org.apache.dubbo.common.bytecode.Proxy0
+     */
+
+    /**
      * @see Proxy#getProxy(java.lang.ClassLoader, java.lang.Class[])
      *
-     * 动态生成 org.apache.dubbo.common.bytecode.Proxy0 的代码如下：
+     *
+     * 非泛化 动态生成 org.apache.dubbo.common.bytecode.Proxy0 的代码如下：
      *
     package org.apache.dubbo.common.bytecode;
 
@@ -335,6 +375,75 @@ public class ServiceReferenceTest {
     }
     }
 
+     *
+     *
+     * 泛化 动态生成 org.apache.dubbo.common.bytecode.Proxy0 的代码如下：
+     *
+     *
+    package org.apache.dubbo.common.bytecode;
+
+    import com.alibaba.dubbo.rpc.service.EchoService;
+    import java.lang.reflect.InvocationHandler;
+    import java.lang.reflect.Method;
+    import java.util.concurrent.CompletableFuture;
+    import org.apache.dubbo.common.bytecode.ClassGenerator;
+    import org.apache.dubbo.demo.DemoService;
+    import org.apache.dubbo.rpc.service.Destroyable;
+    import org.apache.dubbo.rpc.service.GenericException;
+    import org.apache.dubbo.rpc.service.GenericService;
+
+    public class proxy0
+    implements ClassGenerator.DC,
+    GenericService,
+    Destroyable,
+    EchoService,
+    DemoService {
+    public static Method[] methods;
+    private InvocationHandler handler;
+
+    public String sayHello(String string) {
+    Object[] arrobject = new Object[]{string};
+    Object object = this.handler.invoke(this, methods[0], arrobject);
+    return (String)object;
+    }
+
+    public CompletableFuture sayHelloAsync(String string) {
+    Object[] arrobject = new Object[]{string};
+    Object object = this.handler.invoke(this, methods[1], arrobject);
+    return (CompletableFuture)object;
+    }
+
+    public Object $invoke(String string, String[] arrstring, Object[] arrobject) throws GenericException {
+    Object[] arrobject2 = new Object[]{string, arrstring, arrobject};
+    Object object = this.handler.invoke(this, methods[2], arrobject2);
+    return object;
+    }
+
+    public CompletableFuture $invokeAsync(String string, String[] arrstring, Object[] arrobject) throws GenericException
+    {
+    Object[] arrobject2 = new Object[]{string, arrstring, arrobject};
+    Object object = this.handler.invoke(this, methods[3], arrobject2);
+    return (CompletableFuture)object;
+    }
+
+    public Object $echo(Object object) {
+    Object[] arrobject = new Object[]{object};
+    Object object2 = this.handler.invoke(this, methods[4], arrobject);
+    return object2;
+    }
+
+    public void $destroy() {
+    Object[] arrobject = new Object[]{};
+    Object object = this.handler.invoke(this, methods[5], arrobject);
+    }
+
+    public proxy0() {
+    }
+
+    public proxy0(InvocationHandler invocationHandler) {
+    this.handler = invocationHandler;
+    }
+    }
      *
      */
 }
