@@ -456,7 +456,7 @@ public class RegistryProtocol implements Protocol {
 
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
-        directory.setRegistry(registry);
+        directory.setRegistry(registry); // eg. ZookeeperRegistry
         directory.setProtocol(protocol); // Protocol$Adaptive
         // all attributes of REFER_KEY
         Map<String, String> parameters = new HashMap<String, String>(directory.getConsumerUrl().getParameters());

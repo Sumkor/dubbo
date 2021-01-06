@@ -113,6 +113,8 @@ public class ServiceReferenceTest {
      *
      * 3.1 本地服务引入
      *
+     * @see ReferenceConfig#createProxy(java.util.Map)
+     *
      * invoker = REF_PROTOCOL.refer(interfaceClass, url);
      * 其中：
      *     url = injvm://127.0.0.1/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&dubbo=2.0.2&generic=false&injvm=true&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=12876&register.ip=172.20.3.201&release=&side=consumer&sticky=false&timestamp=1609743210808
@@ -168,6 +170,8 @@ public class ServiceReferenceTest {
      *
      * 首先获取到 url 如下：
      *     url = zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-consumer&dubbo=2.0.2&pid=13116&refer=application%3Ddubbo-demo-api-consumer%26dubbo%3D2.0.2%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D13116%26register.ip%3D172.20.3.201%26side%3Dconsumer%26sticky%3Dfalse%26timestamp%3D1609745306260&timestamp=1609745474785
+     *
+     * Cluster cluster = Cluster.getCluster(qs.get(CLUSTER_KEY));
      *
      * 根据 url，由 SPI 得到 Registry 实例为 {@link ZookeeperRegistry}
      * 根据 url，由于 CLUSTER_KEY 为空，使用 {@link Cluster#DEFAULT}，得到 Cluster 实例为 {@link FailoverCluster}
@@ -264,7 +268,7 @@ public class ServiceReferenceTest {
      * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
      * proxy.newInstance(new InvokerInvocationHandler(invoker));
      *
-     * 可见代理类只是对 InvokerInvocationHandler 对象包了一层，没有什么特殊逻辑。
+     * 可见代理类只是对 InvokerInvocationHandler 对象包了一层，而该 Handler 又对 Invoker 包了一层，最终还是调用到 Invoker。
      *
      * 3.3.4 得到 proxy 实例之后，如果是非泛化接口，进行下一步处理
      *

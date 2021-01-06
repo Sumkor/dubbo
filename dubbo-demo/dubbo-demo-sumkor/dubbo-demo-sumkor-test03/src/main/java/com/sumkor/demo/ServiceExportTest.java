@@ -18,9 +18,7 @@ import org.apache.dubbo.remoting.Transporters;
 import org.apache.dubbo.remoting.exchange.Exchangers;
 import org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger;
 import org.apache.dubbo.remoting.transport.netty4.NettyTransporter;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.Protocol;
-import org.apache.dubbo.rpc.ProxyFactory;
+import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.listener.ListenerExporterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
@@ -97,6 +95,7 @@ public class ServiceExportTest {
      *
      *
      * 3. 本地发布
+     * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
      * @see ServiceConfig#exportLocal(org.apache.dubbo.common.URL)
      *
      * 3.1 修改 url 中的协议为 injvm
@@ -106,7 +105,9 @@ public class ServiceExportTest {
      *
      * 这里的 PROXY_FACTORY 为 ProxyFactory$Adaptive 实例（代码见下方）
      * 得到 {@link ProxyFactory} 默认的实现类 {@link JavassistProxyFactory}
+     *
      * 执行 ProxyFactory$Adaptive#getInvoker，实际执行
+     * @see ProxyFactory$Adaptive#getInvoker(java.lang.Object, java.lang.Class, org.apache.dubbo.common.URL)
      * @see JavassistProxyFactory#getInvoker(java.lang.Object, java.lang.Class, org.apache.dubbo.common.URL)
      *
      * 该操作的结果是
@@ -119,7 +120,9 @@ public class ServiceExportTest {
      *
      * SPI 文件为 dubbo-rpc/dubbo-rpc-api/src/main/resources/META-INF/dubbo/internal/org.apache.dubbo.rpc.Protocol
      * 这里的 ROTOCOL 为 Protocol$Adaptive 实例（代码见下方）
+     *
      * 执行 Protocol$Adaptive#export 方法，由于 url.getProtocol() 为 injvm，即实际执行
+     * @see Protocol$Adaptive#export(org.apache.dubbo.rpc.Invoker)
      * Protocol protocol = ExtensionLoader.getExtensionLoader(org.apache.dubbo.rpc.Protocol.class).getExtension("injvm")
      * protocol.export(invoker)
      *
@@ -137,6 +140,8 @@ public class ServiceExportTest {
      *
      *
      * 4. 远程发布
+     *
+     * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
      *
      * 遍历 registryURL，需要把服务远程发布并注册到 registryURL
      *
