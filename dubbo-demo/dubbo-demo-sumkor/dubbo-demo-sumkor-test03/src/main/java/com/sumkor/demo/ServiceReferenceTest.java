@@ -201,8 +201,31 @@ public class ServiceReferenceTest {
      *     subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
      * @see RegistryDirectory#subscribe(org.apache.dubbo.common.URL)
      * @see ZookeeperRegistry#doSubscribe(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener)
+     *
+     * 其中，toCategoriesPath(subscribeUrl) 解析得到三个路径：
+     *     /dubbo/org.apache.dubbo.demo.DemoService/providers
+     *     /dubbo/org.apache.dubbo.demo.DemoService/configurators
+     *     /dubbo/org.apache.dubbo.demo.DemoService/routers
+     *
+     * 分别在 zk 上创建路径、添加监听器，并触发监听器
+     *
      * @see FailbackRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
      * @see AbstractRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
+     *
+     * 这里，入参
+     *     url =  subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
+     *     urls:
+     *         providers = dubbo://172.168.1.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=8832&release=&side=provider&timestamp=1609947302493
+     *         configurators = empty://192.168.20.1/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=configurators&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=19096&side=consumer&sticky=false&timestamp=1609948074093
+     *         routers = empty://192.168.20.1/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=19096&side=consumer&sticky=false&timestamp=1609948074093
+     *
+     * 对于 urls 中的三个地址，依次进行 listener.notify 操作：
+     * 关注 providers url ！！！
+     * @see RegistryDirectory#notify(java.util.List)
+     * @see RegistryDirectory#refreshOverrideAndInvoker(java.util.List)
+     *
+     *
+     *
      *
      * C. 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个
      *
