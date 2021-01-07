@@ -12,6 +12,10 @@ import org.apache.dubbo.registry.integration.RegistryProtocol;
 import org.apache.dubbo.registry.support.AbstractRegistry;
 import org.apache.dubbo.registry.support.FailbackRegistry;
 import org.apache.dubbo.registry.zookeeper.ZookeeperRegistry;
+import org.apache.dubbo.remoting.exchange.Exchangers;
+import org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger;
+import org.apache.dubbo.remoting.transport.netty4.NettyClient;
+import org.apache.dubbo.remoting.transport.netty4.NettyTransporter;
 import org.apache.dubbo.rpc.Protocol$Adaptive;
 import org.apache.dubbo.rpc.ProxyFactory$Adaptive;
 import org.apache.dubbo.rpc.cluster.Cluster;
@@ -23,6 +27,7 @@ import org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper;
 import org.apache.dubbo.rpc.protocol.AbstractProtocol;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
+import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.AbstractProxyFactory;
 import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
@@ -212,19 +217,63 @@ public class ServiceReferenceTest {
      * @see FailbackRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
      * @see AbstractRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
      *
-     * 这里，入参
-     *     url =  subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
+     * 这里，入参（注意 application 参数的差别，猜测是从 zk 上各目录获取到的 url 值）
+     *     url = subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=15508&side=consumer&sticky=false&timestamp=1610013025303
      *     urls:
-     *         providers = dubbo://172.168.1.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=8832&release=&side=provider&timestamp=1609947302493
-     *         configurators = empty://192.168.20.1/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=configurators&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=19096&side=consumer&sticky=false&timestamp=1609948074093
-     *         routers = empty://192.168.20.1/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=19096&side=consumer&sticky=false&timestamp=1609948074093
+     *         providers = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=5844&release=&side=provider&timestamp=1610011492987
+     *         configurators = empty://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=configurators&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=15508&side=consumer&sticky=false&timestamp=1610013025303
+     *         routers = empty://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=15508&side=consumer&sticky=false&timestamp=1610013025303
      *
      * 对于 urls 中的三个地址，依次进行 listener.notify 操作：
-     * 关注 providers url ！！！
+     * 关注 providers url
      * @see RegistryDirectory#notify(java.util.List)
      * @see RegistryDirectory#refreshOverrideAndInvoker(java.util.List)
+     * @see RegistryDirectory#refreshInvoker(java.util.List)
+     * @see RegistryDirectory#toInvokers(java.util.List)
+     *
+     * 其中，URL url = mergeUrl(providerUrl);
+     * 执行之前
+     *     providerUrl = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=5844&release=&side=provider&timestamp=1610011492987
+     * 执行之后得到
+     *     url = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-consumer&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=15508&register.ip=172.20.3.201&release=&remote.application=dubbo-demo-api-provider&side=consumer&sticky=false&timestamp=1610011492987
+     *
+     * 注意到这里从 side=provider 改成 side=consumer
+     *
+     * 重点来了！！！
+     * invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
+     * 这里 serviceType = org.apache.dubbo.demo.DemoService 类
+     *
+     * @see Protocol$Adaptive#refer(java.lang.Class, org.apache.dubbo.common.URL)
+     *
+     * 通过 SPI 得到 {@link DubboProtocol}，执行 DubboProtocol#refer
+     *
+     * @see ProtocolFilterWrapper#refer(java.lang.Class, org.apache.dubbo.common.URL)
+     * @see ProtocolListenerWrapper#refer(java.lang.Class, org.apache.dubbo.common.URL)
+     * @see AbstractProtocol#refer(java.lang.Class, org.apache.dubbo.common.URL)
+     *
+     * @see DubboProtocol#protocolBindingRefer(java.lang.Class, org.apache.dubbo.common.URL)
+     *
+     * 创建 DubboInvoker！
+     * DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
+     *
+     * 关于 getClients，一步步调试进去
+     * @see DubboProtocol#getClients(org.apache.dubbo.common.URL)
+     * @see DubboProtocol#getSharedClient(org.apache.dubbo.common.URL, int)
+     * @see DubboProtocol#buildReferenceCountExchangeClientList(org.apache.dubbo.common.URL, int)
+     * @see DubboProtocol#buildReferenceCountExchangeClient(org.apache.dubbo.common.URL)
+     * @see Exchangers#connect(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.exchange.ExchangeHandler)
+     * @see HeaderExchanger#connect(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.exchange.ExchangeHandler)
+     * @see NettyTransporter#connect(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.ChannelHandler)
+     * @see NettyClient#doOpen()
      *
      *
+     *
+     * 记录本地文件：
+     * C:\Users\huangzb\.dubbo\dubbo-registry-dubbo-demo-api-consumer-127.0.0.1-2181.cache
+     *
+     * #Dubbo Registry Cache
+     * #Thu Jan 07 19:35:14 CST 2021
+     * org.apache.dubbo.demo.DemoService=empty\://172.20.3.201/org.apache.dubbo.demo.DemoService?application\=dubbo-demo-api-consumer&category\=routers&dubbo\=2.0.2&generic\=false&interface\=org.apache.dubbo.demo.DemoService&methods\=sayHello,sayHelloAsync&pid\=15508&side\=consumer&sticky\=false&timestamp\=1610013025303 empty\://172.20.3.201/org.apache.dubbo.demo.DemoService?application\=dubbo-demo-api-consumer&category\=configurators&dubbo\=2.0.2&generic\=false&interface\=org.apache.dubbo.demo.DemoService&methods\=sayHello,sayHelloAsync&pid\=15508&side\=consumer&sticky\=false&timestamp\=1610013025303 dubbo\://172.20.3.201\:20880/org.apache.dubbo.demo.DemoService?anyhost\=true&application\=dubbo-demo-api-provider&deprecated\=false&dubbo\=2.0.2&dynamic\=true&generic\=false&interface\=org.apache.dubbo.demo.DemoService&methods\=sayHello,sayHelloAsync&pid\=5844&release\=&side\=provider&timestamp\=1610011492987
      *
      *
      * C. 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个
