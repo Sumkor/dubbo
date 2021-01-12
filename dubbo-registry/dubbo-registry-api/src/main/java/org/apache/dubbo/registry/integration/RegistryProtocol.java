@@ -466,7 +466,7 @@ public class RegistryProtocol implements Protocol {
             registry.register(directory.getRegisteredConsumerUrl()); // 注册 registeredConsumerUrl // 注册服务消费者，在 consumers 目录下新节点
         }
         directory.buildRouterChain(subscribeUrl);
-        directory.subscribe(toSubscribeUrl(subscribeUrl)); // 订阅 subscribeUrl // 订阅 providers、configurators、routers 等节点数据
+        directory.subscribe(toSubscribeUrl(subscribeUrl)); // 订阅 subscribeUrl // 订阅 providers、configurators、routers 等节点数据，构建 invoker 如 DubboInvoker
 
         Invoker<T> invoker = cluster.join(directory); // 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个
         List<RegistryProtocolListener> listeners = findRegistryProtocolListeners(url);

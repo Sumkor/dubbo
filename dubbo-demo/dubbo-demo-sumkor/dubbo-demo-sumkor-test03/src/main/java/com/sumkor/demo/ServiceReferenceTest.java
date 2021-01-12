@@ -7,6 +7,7 @@ import org.apache.dubbo.config.spring.ReferenceBean;
 import org.apache.dubbo.config.spring.beans.factory.annotation.AnnotatedInterfaceConfigBeanBuilder;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ReferenceAnnotationBeanPostProcessor;
 import org.apache.dubbo.config.utils.ConfigValidationUtils;
+import org.apache.dubbo.registry.Constants;
 import org.apache.dubbo.registry.integration.RegistryDirectory;
 import org.apache.dubbo.registry.integration.RegistryProtocol;
 import org.apache.dubbo.registry.support.AbstractRegistry;
@@ -27,6 +28,7 @@ import org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper;
 import org.apache.dubbo.rpc.protocol.AbstractProtocol;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
+import org.apache.dubbo.rpc.protocol.dubbo.DubboInvoker;
 import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.AbstractProxyFactory;
@@ -96,6 +98,7 @@ public class ServiceReferenceTest {
      * 实例化 ConsumerConfig 等，猜测各种 config 只是用于构造 url
      * @see ReferenceConfig#checkAndUpdateSubConfigs()
      *
+     * register.ip 对应代码中的 {@link Constants#REGISTER_IP_KEY}，代表的是服务消费者地址
      *
      * 3. 创建代理类！！！！！！！！
      * @see ReferenceConfig#createProxy(java.util.Map)
@@ -217,7 +220,7 @@ public class ServiceReferenceTest {
      * @see FailbackRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
      * @see AbstractRegistry#notify(org.apache.dubbo.common.URL, org.apache.dubbo.registry.NotifyListener, java.util.List)
      *
-     * 这里，入参（注意 application 参数的差别，猜测是从 zk 上各目录获取到的 url 值）
+     * 这里，入参（注意 application 参数的差别，猜测 urls 是从 zk 上各目录 category 获取到的值）
      *     url = subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=15508&side=consumer&sticky=false&timestamp=1610013025303
      *     urls:
      *         providers = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=5844&release=&side=provider&timestamp=1610011492987
@@ -242,6 +245,8 @@ public class ServiceReferenceTest {
      * 重点来了！！！
      * invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
      * 这里 serviceType = org.apache.dubbo.demo.DemoService 类
+     *
+     * 这里得到的 invoker 最后存储在 {@link RegistryDirectory#urlInvokerMap}，key 为 url，value 为 {@link DubboInvoker} 的包装类 {@link RegistryDirectory.InvokerDelegate}
      *
      * @see Protocol$Adaptive#refer(java.lang.Class, org.apache.dubbo.common.URL)
      *
@@ -380,7 +385,19 @@ public class ServiceReferenceTest {
      *     registeredConsumerUrl = consumer://172.20.3.201/org.apache.dubbo.rpc.service.GenericService?application=dubbo-demo-api-consumer&category=consumers&check=false&dubbo=2.0.2&generic=true&interface=org.apache.dubbo.demo.DemoService&pid=17336&side=consumer&sticky=false&timestamp=1609915206947
      *     subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.rpc.service.GenericService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=true&interface=org.apache.dubbo.demo.DemoService&pid=17336&side=consumer&sticky=false&timestamp=1609915206947
      *
-     * 3.3 生成代理
+     * 3.3 生成 invoker
+     *
+     * @see RegistryDirectory#subscribe(org.apache.dubbo.common.URL)
+     * @see RegistryDirectory#toInvokers(java.util.List)
+     * @see DubboProtocol#protocolBindingRefer(java.lang.Class, org.apache.dubbo.common.URL)
+     *
+     *     url = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-consumer&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=true&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=5736&register.ip=172.20.3.201&release=&remote.application=dubbo-demo-api-provider&side=consumer&sticky=false&timestamp=1610421348339
+     *     serviceType = org.apache.dubbo.rpc.service.GenericService
+     *     invoker = DubboInvoker 的包装类
+     *
+     * 这里得到的 url 与非泛化的相同
+     *
+     * 3.4 生成代理
      *
      * @see ReferenceConfig#createProxy(java.util.Map)
      * @see AbstractProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
