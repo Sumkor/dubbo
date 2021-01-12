@@ -58,28 +58,28 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
         List<Invoker<T>> copyInvokers = invokers;
         checkInvokers(copyInvokers, invocation);
         String methodName = RpcUtils.getMethodName(invocation);
-        int len = getUrl().getMethodParameter(methodName, RETRIES_KEY, DEFAULT_RETRIES) + 1;
+        int len = getUrl().getMethodParameter(methodName, RETRIES_KEY, DEFAULT_RETRIES) + 1; // 获取重试次数
         if (len <= 0) {
             len = 1;
         }
         // retry loop.
         RpcException le = null; // last exception.
-        List<Invoker<T>> invoked = new ArrayList<Invoker<T>>(copyInvokers.size()); // invoked invokers.
+        List<Invoker<T>> invoked = new ArrayList<Invoker<T>>(copyInvokers.size()); // invoked invokers. // 注意每次调用的时候，都会设置为空。只有在重试过程中才不为空。
         Set<String> providers = new HashSet<String>(len);
-        for (int i = 0; i < len; i++) {
+        for (int i = 0; i < len; i++) {  // 循环调用，失败重试
             //Reselect before retry to avoid a change of candidate `invokers`.
             //NOTE: if `invokers` changed, then `invoked` also lose accuracy.
             if (i > 0) {
                 checkWhetherDestroyed();
-                copyInvokers = list(invocation);
+                copyInvokers = list(invocation); // 在进行重试前重新列举 Invoker，这样做的好处是，如果某个服务挂了，通过调用 list 可得到最新可用的 Invoker 列表
                 // check again
                 checkInvokers(copyInvokers, invocation);
             }
-            Invoker<T> invoker = select(loadbalance, invocation, copyInvokers, invoked);
+            Invoker<T> invoker = select(loadbalance, invocation, copyInvokers, invoked); // 选择 Invoker，先判断是否是粘滞连接，再做负载均衡
             invoked.add(invoker);
             RpcContext.getContext().setInvokers((List) invoked);
             try {
-                Result result = invoker.invoke(invocation);
+                Result result = invoker.invoke(invocation); // 调用目标 Invoker 的 invoke 方法
                 if (le != null && logger.isWarnEnabled()) {
                     logger.warn("Although retry the method " + methodName
                             + " in the service " + getInterface().getName()
@@ -91,7 +91,7 @@ public class FailoverClusterInvoker<T> extends AbstractClusterInvoker<T> {
                             + " using the dubbo version " + Version.getVersion() + ". Last error is: "
                             + le.getMessage(), le);
                 }
-                return result;
+                return result; // invoke 成功则返回，否则重试
             } catch (RpcException e) {
                 if (e.isBiz()) { // biz exception.
                     throw e;

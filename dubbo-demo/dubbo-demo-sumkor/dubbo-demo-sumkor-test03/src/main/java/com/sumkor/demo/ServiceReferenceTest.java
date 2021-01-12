@@ -13,18 +13,12 @@ import org.apache.dubbo.registry.integration.RegistryProtocol;
 import org.apache.dubbo.registry.support.AbstractRegistry;
 import org.apache.dubbo.registry.support.FailbackRegistry;
 import org.apache.dubbo.registry.zookeeper.ZookeeperRegistry;
-import org.apache.dubbo.remoting.exchange.Exchangers;
-import org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger;
-import org.apache.dubbo.remoting.transport.netty4.NettyClient;
-import org.apache.dubbo.remoting.transport.netty4.NettyTransporter;
 import org.apache.dubbo.rpc.Protocol$Adaptive;
-import org.apache.dubbo.rpc.ProxyFactory$Adaptive;
 import org.apache.dubbo.rpc.cluster.Cluster;
+import org.apache.dubbo.rpc.cluster.RouterChain;
 import org.apache.dubbo.rpc.cluster.interceptor.ConsumerContextClusterInterceptor;
 import org.apache.dubbo.rpc.cluster.support.FailoverCluster;
 import org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker;
-import org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster;
-import org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper;
 import org.apache.dubbo.rpc.protocol.AbstractProtocol;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
@@ -34,7 +28,6 @@ import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.AbstractProxyFactory;
 import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
-import org.apache.dubbo.rpc.proxy.wrapper.StubProxyFactoryWrapper;
 import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
 
 /**
@@ -188,6 +181,8 @@ public class ServiceReferenceTest {
      * ！！！得到包装类
      * MockClusterWrapper(FailoverCluster)
      *
+     *
+     *
      * 3.2.2 Protocol#doRefer
      *
      * 关注真正执行 Protocol#refer 的位置！
@@ -198,10 +193,14 @@ public class ServiceReferenceTest {
      *    subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
      *    registeredConsumerUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=consumers&check=false&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
      *
+     *
+     *
      * A. 注册服务消费者，在 consumers 目录下新节点
      *
      * 把 registeredConsumerUrl 注册到 zk 上，不知道有什么用
      * @see ZookeeperRegistry#doRegister(org.apache.dubbo.common.URL)
+     *
+     *
      *
      * B. 订阅 providers、configurators、routers 等节点数据
      *
@@ -227,8 +226,11 @@ public class ServiceReferenceTest {
      *         configurators = empty://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=configurators&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=15508&side=consumer&sticky=false&timestamp=1610013025303
      *         routers = empty://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=15508&side=consumer&sticky=false&timestamp=1610013025303
      *
-     * 对于 urls 中的三个地址，依次进行 listener.notify 操作：
-     * 关注 providers url
+     * 对于 urls 中的三个地址，依次进行 listener#notify 操作：
+     *
+     *
+     * B.1 通知 providers url 监听器
+     *
      * @see RegistryDirectory#notify(java.util.List)
      * @see RegistryDirectory#refreshOverrideAndInvoker(java.util.List)
      * @see RegistryDirectory#refreshInvoker(java.util.List)
@@ -246,8 +248,22 @@ public class ServiceReferenceTest {
      * invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
      * 这里 serviceType = org.apache.dubbo.demo.DemoService 类
      *
-     * 这里得到的 invoker 最后存储在 {@link RegistryDirectory#urlInvokerMap}，key 为 url，value 为 {@link DubboInvoker} 的包装类 {@link RegistryDirectory.InvokerDelegate}
+     * 这里得到的 invoker
+     * 存储在 {@link RegistryDirectory#urlInvokerMap}，key 为 url，value 为 {@link DubboInvoker} 的包装类 {@link RegistryDirectory.InvokerDelegate}
+     * 存储在 {@link RegistryDirectory#invokers}
+     * 存储在 {@link RouterChain#invokers}
      *
+     * Directory 的用途是保存 Invoker，可简单类比为 List<Invoker>。
+     * 其实现类 RegistryDirectory 是一个动态服务目录，可感知注册中心配置的变化，它所持有的 Invoker 列表会随着注册中心内容的变化而变化。
+     * 每次变化后，RegistryDirectory 会动态增删 Invoker，并调用 Router 的 route 方法进行路由，过滤掉不符合路由规则的 Invoker。
+     * https://dubbo.apache.org/zh/docs/v2.7/dev/source/cluster/
+     *
+     *
+     * B.2 DubboProtocol#refer
+     *
+     * protocol.refer(serviceType, url)
+     *
+     * 入参 serviceType、url 上面都有记录了，进去看逻辑
      * @see Protocol$Adaptive#refer(java.lang.Class, org.apache.dubbo.common.URL)
      *
      * 通过 SPI 得到 {@link DubboProtocol}，执行 DubboProtocol#refer
@@ -261,6 +277,9 @@ public class ServiceReferenceTest {
      * 创建 DubboInvoker！
      * DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
      *
+     *
+     * B.3 创建 Netty 客户端
+     *
      * 关于 getClients，一步步调试进去
      * @see DubboProtocol#getClients(org.apache.dubbo.common.URL)
      * @see DubboProtocol#getSharedClient(org.apache.dubbo.common.URL, int)
@@ -272,13 +291,13 @@ public class ServiceReferenceTest {
      * @see NettyClient#doOpen()
      *
      *
-     *
      * 记录本地文件：
      * C:\Users\huangzb\.dubbo\dubbo-registry-dubbo-demo-api-consumer-127.0.0.1-2181.cache
      *
      * #Dubbo Registry Cache
      * #Thu Jan 07 19:35:14 CST 2021
      * org.apache.dubbo.demo.DemoService=empty\://172.20.3.201/org.apache.dubbo.demo.DemoService?application\=dubbo-demo-api-consumer&category\=routers&dubbo\=2.0.2&generic\=false&interface\=org.apache.dubbo.demo.DemoService&methods\=sayHello,sayHelloAsync&pid\=15508&side\=consumer&sticky\=false&timestamp\=1610013025303 empty\://172.20.3.201/org.apache.dubbo.demo.DemoService?application\=dubbo-demo-api-consumer&category\=configurators&dubbo\=2.0.2&generic\=false&interface\=org.apache.dubbo.demo.DemoService&methods\=sayHello,sayHelloAsync&pid\=15508&side\=consumer&sticky\=false&timestamp\=1610013025303 dubbo\://172.20.3.201\:20880/org.apache.dubbo.demo.DemoService?anyhost\=true&application\=dubbo-demo-api-provider&deprecated\=false&dubbo\=2.0.2&dynamic\=true&generic\=false&interface\=org.apache.dubbo.demo.DemoService&methods\=sayHello,sayHelloAsync&pid\=5844&release\=&side\=provider&timestamp\=1610011492987
+     *
      *
      *
      * C. 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个
@@ -299,6 +318,8 @@ public class ServiceReferenceTest {
      * invoker 属性是 AbstractCluster.InterceptorInvokerNode 实例，该实例包含了 FailoverClusterInvoker 和 ConsumerContextClusterInterceptor 对象；
      *
      * Invoker 创建完毕后，接下来要做的事情是为服务接口生成代理对象。有了代理对象，即可进行远程调用。
+     *
+     *
      *
      *
      * 3.3 生成代理

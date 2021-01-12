@@ -251,7 +251,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                 providerURLs = addressListener.notify(providerURLs, getConsumerUrl(),this);
             }
         }
-        refreshOverrideAndInvoker(providerURLs);
+        refreshOverrideAndInvoker(providerURLs); // 刷新/生成 invoker
     }
 
     private String judgeCategory(URL url) {
@@ -309,7 +309,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
             if (invokerUrls.isEmpty()) {
                 return;
             }
-            Map<String, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map
+            Map<String, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map // 将 url 转换成 Invoker
 
             /**
              * If the calculation is wrong, it is not processed.
@@ -328,9 +328,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
             List<Invoker<T>> newInvokers = Collections.unmodifiableList(new ArrayList<>(newUrlInvokerMap.values()));
             // pre-route and build cache, notice that route cache should build on original Invoker list.
             // toMergeMethodInvokerMap() will wrap some invokers having different groups, those wrapped invokers not should be routed.
-            routerChain.setInvokers(newInvokers);
-            this.invokers = multiGroup ? toMergeInvokerList(newInvokers) : newInvokers;
-            this.urlInvokerMap = newUrlInvokerMap;
+            routerChain.setInvokers(newInvokers); // 将 Invoker 存储在 routerChain
+            this.invokers = multiGroup ? toMergeInvokerList(newInvokers) : newInvokers; // 将 Invoker 存储在 RegistryDirectory
+            this.urlInvokerMap = newUrlInvokerMap; // 将 Invoker 存储在 urlInvokerMap
 
             try {
                 destroyUnusedInvokers(oldUrlInvokerMap, newUrlInvokerMap); // Close the unused Invoker

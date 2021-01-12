@@ -171,14 +171,20 @@ public class ZookeeperRegistry extends FailbackRegistry {
                 List<URL> urls = new ArrayList<>();
                 for (String path : toCategoriesPath(url)) { // 拆分 url 中的 category 参数为多个 path
                     ConcurrentMap<NotifyListener, ChildListener> listeners = zkListeners.computeIfAbsent(url, k -> new ConcurrentHashMap<>());
-                    ChildListener zkListener = listeners.computeIfAbsent(listener, k -> (parentPath, currentChilds) -> ZookeeperRegistry.this.notify(url, k, toUrlsWithEmpty(url, parentPath, currentChilds)));
+//                    ChildListener zkListener = listeners.computeIfAbsent(listener, k -> (parentPath, currentChilds) -> ZookeeperRegistry.this.notify(url, k, toUrlsWithEmpty(url, parentPath, currentChilds)));
+                    ChildListener zkListener = listeners.computeIfAbsent(listener, k -> new ChildListener() {
+                        @Override
+                        public void childChanged(String parentPath, List<String> currentChilds) {
+                            ZookeeperRegistry.this.notify(url, k, toUrlsWithEmpty(url, parentPath, currentChilds));
+                        }
+                    });
                     zkClient.create(path, false);
-                    List<String> children = zkClient.addChildListener(path, zkListener);
+                    List<String> children = zkClient.addChildListener(path, zkListener); // 得到 zk 上 path 路径下的的子节点
                     if (children != null) {
                         urls.addAll(toUrlsWithEmpty(url, path, children));
                     }
                 }
-                notify(url, listener, urls); // 触发监听器
+                notify(url, listener, urls); // 通知监听器
             }
         } catch (Throwable e) {
             throw new RpcException("Failed to subscribe " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);
