@@ -5,19 +5,10 @@ import org.apache.dubbo.config.ReferenceConfig;
 import org.apache.dubbo.registry.integration.RegistryDirectory;
 import org.apache.dubbo.registry.integration.RegistryProtocol;
 import org.apache.dubbo.registry.zookeeper.ZookeeperRegistry;
-import org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker;
-import org.apache.dubbo.rpc.cluster.support.FailbackClusterInvoker;
-import org.apache.dubbo.rpc.cluster.support.FailoverCluster;
-import org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker;
+import org.apache.dubbo.rpc.cluster.Directory;
+import org.apache.dubbo.rpc.cluster.support.*;
 import org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper;
 import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
-import org.junit.jupiter.api.Test;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 
 /**
  * 集群
@@ -37,7 +28,7 @@ import java.util.function.Supplier;
  *
  *
  * 集群工作过程可分为两个阶段：
- * 第一个阶段是在服务消费者初始化期间，集群 Cluster 实现类为服务消费者创建 Cluster Invoker 实例，即上 merge 操作。
+ * 第一个阶段是在服务消费者初始化期间，集群 Cluster 实现类为服务消费者创建 Cluster Invoker 实例，即 merge 操作。
  * 第二个阶段是在服务消费者进行远程调用时。以 FailoverClusterInvoker 为例，该类型 Cluster Invoker 首先会调用 Directory 的 list 方法列举 Invoker 列表（可将 Invoker 简单理解为服务提供者）。
  * Directory 的用途是保存 Invoker，可简单类比为 List<Invoker>。
  * 当 FailoverClusterInvoker 拿到 Directory 返回的 Invoker 列表后，它会通过 LoadBalance 从 Invoker 列表中选择一个 Invoker。
@@ -52,6 +43,7 @@ import java.util.function.Supplier;
  *     Failsafe Cluster - 失败安全
  *     Failback Cluster - 失败自动恢复
  *     Forking Cluster - 并行调用多个服务提供者
+ *     Broadcast Cluster - 广播
  *
  *
  * @author Sumkor
@@ -91,7 +83,7 @@ public class ServiceClusterTest {
      *     subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14656&side=consumer&sticky=false&timestamp=1609928845850
      *     cluster = MockClusterWrapper(FailoverCluster)
      *
-     * 关注 directory.invokers
+     * 关注 directory#invokers
      * 在执行了 toSubscribeUrl(subscribeUrl) 之后，得到了两个 invoker！！！
      *
      * 2. 生成 invoker
@@ -104,11 +96,15 @@ public class ServiceClusterTest {
      *     dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=13660&release=&side=provider&timestamp=1610422184655
      *     dubbo://172.20.3.201:20881/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14916&release=&side=provider&timestamp=1610422205251
      *
-     * 根据 url 创建 invoker
+     * 设置 {@link RegistryDirectory#overrideDirectoryUrl} 即 {@link Directory#getConsumerUrl()} 的值：
+     * @see RegistryDirectory#refreshOverrideAndInvoker(java.util.List)
+     *     zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-consumer&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=29644&register.ip=172.20.3.201&side=consumer&sticky=false&timestamp=1610526156942
+     *
+     * 根据 provider url 创建 invoker
      * @see RegistryDirectory#refreshInvoker(java.util.List)
      * @see RegistryDirectory#toInvokers(java.util.List)
      *
-     * 对 url 进行转换
+     * 对 provider url 进行转换
      * URL url = mergeUrl(providerUrl);
      *     dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-consumer&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=16284&register.ip=172.20.3.201&release=&remote.application=dubbo-demo-api-provider&side=consumer&sticky=false&timestamp=1610422184655
      *     dubbo://172.20.3.201:20881/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-consumer&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=16284&register.ip=172.20.3.201&release=&remote.application=dubbo-demo-annotation-provider&side=consumer&sticky=false&timestamp=1610422205251
@@ -142,10 +138,10 @@ public class ServiceClusterTest {
      * @see AbstractClusterInvoker#initLoadBalance(java.util.List, org.apache.dubbo.rpc.Invocation)
      *
      *
+     *
      * 2. 失败自动切换，入口
      * @see FailoverClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
-     *
-     * FailoverClusterInvoker 在调用失败时，会自动切换 Invoker 进行重试。默认配置下，Dubbo 会使用这个类作为缺省 Cluster Invoker
+     * FailoverClusterInvoker 在调用失败时，会自动切换 Invoker 进行重试。默认配置下，Dubbo 会使用这个类作为缺省 Cluster Invoker。
      *
      * FailoverClusterInvoker 的 doInvoke 方法首先是获取重试次数，然后根据重试次数进行循环调用，失败后进行重试。
      * 在 for 循环内，首先是通过负载均衡组件选择一个 Invoker，然后再通过这个 Invoker 的 invoke 方法进行远程调用。
@@ -158,10 +154,17 @@ public class ServiceClusterTest {
      * 这里的粘滞指的是：多次服务调用过程中，如果第一次服务调用成功，则第二次调用，服务消费者依旧会调用到同一个服务提供者。
      * 即，粘滞 是作用在多次服务调用过程中的，而不是作用在同一次服务调用的 重试 过程中。
      *
+     * 关于 FailoverClusterInvoker 是否是单例？
+     * 已知在 {@link RegistryProtocol#doRefer} 中执行 Invoker<T> invoker = cluster.join(directory);
+     * 会执行 {@link FailoverCluster#doJoin} 利用 FailoverCluster 生成 FailoverClusterInvoker 实例。
+     * 可知，对于一个服务提供者接口，生成一个 ClusterInvoker 实例，服务消费者对该接口发起多次调用，使用的是同一个 ClusterInvoker 实例。
+     * 即，对于同一个接口来说，FailoverClusterInvoker 是单例的。
+     * 因此可以使用 {@link AbstractClusterInvoker#stickyInvoker} 这个 volatile 变量来存储上一次调用使用的 invoker，达到粘滞连接的效果。
+     *
+     *
      *
      * 3. 失败自动恢复，入口
      * @see FailbackClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
-     *
      * FailbackClusterInvoker 会在调用失败后，返回一个空结果给服务消费者。并通过定时任务对失败的调用进行重传，适合执行消息通知等操作。
      *
      * 若远程调用失败，则通过 addFailed 方法将调用信息存入到 failed 中，等待定时重试。
@@ -171,54 +174,30 @@ public class ServiceClusterTest {
      * TODO 时间轮算法 {@link HashedWheelTimer}
      *
      *
+     *
+     * 4. 快速失败，入口
+     * @see FailfastClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
+     * FailfastClusterInvoker 只会进行一次调用，失败后立即抛出异常。适用于幂等操作，比如新增记录。
+     *
+     *
+     *
+     * 5. 失败安全，入口
+     * @see FailsafeClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
+     * FailsafeClusterInvoker 是一种失败安全的 Cluster Invoker。所谓的失败安全是指，当调用过程中出现异常时，FailsafeClusterInvoker 仅会打印异常，而不会抛出异常。适用于写入审计日志等操作。
+     *
+     *
+     *
+     * 6. 并行调用，入口
+     * @see ForkingClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
+     * ForkingClusterInvoker 会在运行时通过线程池创建多个线程，并发调用多个服务提供者。只要有一个服务提供者成功返回了结果，doInvoke 方法就会立即结束运行。
+     * 应用场景是在一些对实时性要求比较高读操作（注意是读操作，并行写操作可能不安全）下使用，但这将会耗费更多的资源。
+     *
+     *
+     *
+     * 7. 广播，入口
+     * @see BroadcastClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
+     * BroadcastClusterInvoker 会逐个调用每个服务提供者，如果其中一台报错，在循环调用结束后，BroadcastClusterInvoker 会抛出异常。
+     * 该类通常用于通知所有提供者更新缓存或日志等本地资源信息。
      */
 
-    /**
-     * CompletableFuture 学习
-     * https://blog.csdn.net/zhangphil/article/details/80731593
-     */
-    @Test
-    public void CompletableFuture() throws ExecutionException, InterruptedException {
-        CompletableFuture<String> future = CompletableFuture.supplyAsync(new Supplier<String>() {
-            @Override
-            public String get() {
-                try {
-                    TimeUnit.SECONDS.sleep(3);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-                return "hahaha";
-            }
-        });
-
-        System.out.println(System.currentTimeMillis() + ":time 1");
-
-        future.whenCompleteAsync(new BiConsumer<String, Throwable>() {
-            @Override
-            public void accept(String s, Throwable throwable) {
-                System.out.println(System.currentTimeMillis() + ":" + s);
-            }
-        });
-
-        System.out.println(System.currentTimeMillis() + ":time 2");
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    TimeUnit.SECONDS.sleep(2);
-                } catch (Exception e) {
-                    //异常退出
-                    future.completeExceptionally(e);
-                }
-
-                // CompletableFuture被通知线程任务完成。
-                System.out.println(System.currentTimeMillis() + ":运行至此。");
-                future.complete("任务完成。");
-            }
-        }).start();
-
-        System.out.println(System.currentTimeMillis() + ":time 3");
-    }
 }

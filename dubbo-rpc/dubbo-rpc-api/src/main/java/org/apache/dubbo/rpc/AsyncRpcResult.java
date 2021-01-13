@@ -325,7 +325,7 @@ public class AsyncRpcResult implements Result {
         } else {
             result.setValue(value);
         }
-        future.complete(result);
+        future.complete(result); // 任务完成，设置 future#get 的返回值
         return new AsyncRpcResult(future, invocation);
     }
 
