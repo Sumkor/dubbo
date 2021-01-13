@@ -1,4 +1,4 @@
-package com.sumkor.demo;
+package com.sumkor.demo.test;
 
 import com.sumkor.demo.impl.DuplicateExtImplTest01;
 import com.sumkor.demo.impl.DuplicateExtImplTest02;

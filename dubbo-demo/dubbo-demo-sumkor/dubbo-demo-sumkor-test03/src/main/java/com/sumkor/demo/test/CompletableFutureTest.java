@@ -1,4 +1,4 @@
-package com.sumkor.demo;
+package com.sumkor.demo.test;
 
 import org.junit.jupiter.api.Test;
 

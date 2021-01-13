@@ -1,4 +1,4 @@
-package com.sumkor.demo;
+package com.sumkor.demo.core;
 
 import com.alibaba.spring.beans.factory.annotation.AbstractAnnotationBeanPostProcessor;
 import org.apache.dubbo.common.bytecode.Proxy;

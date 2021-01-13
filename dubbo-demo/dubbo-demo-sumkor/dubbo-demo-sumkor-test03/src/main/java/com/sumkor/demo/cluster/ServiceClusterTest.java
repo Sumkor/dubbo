@@ -1,4 +1,4 @@
-package com.sumkor.demo;
+package com.sumkor.demo.cluster;
 
 import org.apache.dubbo.common.timer.HashedWheelTimer;
 import org.apache.dubbo.config.ReferenceConfig;

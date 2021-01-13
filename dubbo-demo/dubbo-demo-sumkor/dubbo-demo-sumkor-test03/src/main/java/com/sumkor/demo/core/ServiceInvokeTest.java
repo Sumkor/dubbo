@@ -1,4 +1,4 @@
-package com.sumkor.demo;
+package com.sumkor.demo.core;
 
 /**
  * 服务调用过程

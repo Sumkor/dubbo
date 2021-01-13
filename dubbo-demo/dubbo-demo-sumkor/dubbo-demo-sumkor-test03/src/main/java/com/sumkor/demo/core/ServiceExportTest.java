@@ -1,5 +1,6 @@
-package com.sumkor.demo;
+package com.sumkor.demo.core;
 
+import com.sumkor.demo.DemoServiceImpl;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.bytecode.Wrapper;
 import org.apache.dubbo.common.extension.ExtensionLoader;
