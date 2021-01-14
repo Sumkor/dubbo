@@ -23,6 +23,14 @@ import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.RouterChain;
 import org.apache.dubbo.rpc.cluster.interceptor.ConsumerContextClusterInterceptor;
+import org.apache.dubbo.rpc.cluster.router.condition.config.AppRouter;
+import org.apache.dubbo.rpc.cluster.router.condition.config.AppRouterFactory;
+import org.apache.dubbo.rpc.cluster.router.condition.config.ServiceRouter;
+import org.apache.dubbo.rpc.cluster.router.condition.config.ServiceRouterFactory;
+import org.apache.dubbo.rpc.cluster.router.mock.MockInvokersSelector;
+import org.apache.dubbo.rpc.cluster.router.mock.MockRouterFactory;
+import org.apache.dubbo.rpc.cluster.router.tag.TagRouter;
+import org.apache.dubbo.rpc.cluster.router.tag.TagRouterFactory;
 import org.apache.dubbo.rpc.cluster.support.FailoverCluster;
 import org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker;
 import org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster;
@@ -213,9 +221,39 @@ public class ServiceReferenceTest {
      * @see ZookeeperRegistry#doRegister(org.apache.dubbo.common.URL)
      *
      *
+     * B. 构建 RouterChain
      *
-     * B. 订阅 providers、configurators、routers 等节点数据
+     * directory.buildRouterChain(subscribeUrl);
+     * 其中：
+     *     subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=5692&side=consumer&sticky=false&timestamp=1610606725818
      *
+     * 来看构建 RouterChain 实例的过程
+     * @see RegistryDirectory#buildRouterChain(org.apache.dubbo.common.URL)
+     * @see RouterChain#buildChain(org.apache.dubbo.common.URL)
+     * @see RouterChain#RouterChain(org.apache.dubbo.common.URL)
+     *
+     * 这里，用到了 SPI Activate，即根据分组获取一批 SPI 实现类：
+     * @see MockRouterFactory
+     * @see TagRouterFactory
+     * @see AppRouterFactory
+     * @see ServiceRouterFactory
+     *
+     * 执行 factory#getRouter 得到对应的 Router 实例列表
+     * @see MockInvokersSelector
+     * @see TagRouter
+     * @see AppRouter
+     * @see ServiceRouter
+     *
+     * 将这些 Router 实例列表存储在 {@link RouterChain#builtinRouters}、{@link RouterChain#routers} 之中。
+     * @see RouterChain#initWithRouters(java.util.List)
+     *
+     * 最后将 RouterChain 实例存储在 {@link AbstractDirectory#routerChain}
+     *
+     *
+     *
+     * C. 订阅 providers、configurators、routers 等节点数据
+     *
+     * directory.subscribe(toSubscribeUrl(subscribeUrl));
      * 对 subscribeUrl 添加参数，并进行订阅
      *     subscribeUrl = consumer://172.20.3.201/org.apache.dubbo.demo.DemoService?application=dubbo-demo-api-consumer&category=providers,configurators,routers&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=14212&side=consumer&sticky=false&timestamp=1609752919230
      * @see RegistryDirectory#subscribe(org.apache.dubbo.common.URL)
@@ -241,7 +279,7 @@ public class ServiceReferenceTest {
      * 对于 urls 中的三个地址，依次进行 listener#notify 操作：
      *
      *
-     * B.1 通知 providers url 监听器
+     * C.1 通知 providers url 监听器
      *
      * @see RegistryDirectory#notify(java.util.List)
      *
@@ -276,7 +314,7 @@ public class ServiceReferenceTest {
      * https://dubbo.apache.org/zh/docs/v2.7/dev/source/cluster/
      *
      *
-     * B.2 DubboProtocol#refer
+     * C.2 DubboProtocol#refer
      *
      * protocol.refer(serviceType, url)
      *
@@ -295,7 +333,7 @@ public class ServiceReferenceTest {
      * DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
      *
      *
-     * B.3 创建 Netty 客户端
+     * C.3 创建 Netty 客户端
      *
      * 关于 getClients，一步步调试进去
      * @see DubboProtocol#getClients(org.apache.dubbo.common.URL)
@@ -317,7 +355,7 @@ public class ServiceReferenceTest {
      *
      *
      *
-     * C. 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个
+     * D. 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个
      *
      * 使用 cluster 和 directory 构造 invoker：
      * Invoker<T> invoker = cluster.join(directory);

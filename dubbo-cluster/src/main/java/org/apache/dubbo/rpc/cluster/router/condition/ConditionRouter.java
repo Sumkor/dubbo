@@ -83,6 +83,7 @@ public class ConditionRouter extends AbstractRouter {
             }
             rule = rule.replace("consumer.", "").replace("provider.", "");
             int i = rule.indexOf("=>");
+            // 分别获取服务消费者和提供者匹配规则
             String whenRule = i < 0 ? null : rule.substring(0, i).trim();
             String thenRule = i < 0 ? rule.trim() : rule.substring(i + 2).trim();
             Map<String, MatchPair> when = StringUtils.isBlank(whenRule) || "true".equals(whenRule) ? new HashMap<String, MatchPair>() : parseRule(whenRule);
@@ -176,16 +177,19 @@ public class ConditionRouter extends AbstractRouter {
             return invokers;
         }
         try {
+            // 先对服务消费者条件进行匹配，如果匹配失败，表明服务消费者 url 不符合匹配规则，无需进行后续匹配，直接返回 Invoker 列表即可。
             if (!matchWhen(url, invocation)) {
                 return invokers;
             }
             List<Invoker<T>> result = new ArrayList<Invoker<T>>();
+            // 服务提供者匹配条件未配置，表明对指定的服务消费者禁用服务，也就是服务消费者在黑名单中
             if (thenCondition == null) {
                 logger.warn("The current consumer in the service blacklist. consumer: " + NetUtils.getLocalHost() + ", service: " + url.getServiceKey());
                 return result;
             }
+            // 这里可以简单的把 Invoker 理解为服务提供者，现在使用服务提供者匹配规则对 Invoker 列表进行匹配
             for (Invoker<T> invoker : invokers) {
-                if (matchThen(invoker.getUrl(), url)) {
+                if (matchThen(invoker.getUrl(), url)) { // 若匹配成功，表明当前 Invoker 符合服务提供者匹配规则。
                     result.add(invoker);
                 }
             }
@@ -259,8 +263,8 @@ public class ConditionRouter extends AbstractRouter {
     }
 
     protected static final class MatchPair {
-        final Set<String> matches = new HashSet<String>();
-        final Set<String> mismatches = new HashSet<String>();
+        final Set<String> matches = new HashSet<String>(); // 匹配的条件
+        final Set<String> mismatches = new HashSet<String>(); // 不匹配的条件
 
         private boolean isMatch(String value, URL param) {
             if (!matches.isEmpty() && mismatches.isEmpty()) {

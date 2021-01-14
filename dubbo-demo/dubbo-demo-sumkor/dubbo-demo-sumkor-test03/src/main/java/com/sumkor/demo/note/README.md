@@ -20,6 +20,8 @@ ServiceDirectoryTest
 
 ## 4.2 服务路由 Router
 
+ServiceRouteTest
+
 ## 4.3 集群 Cluster
 
 ![Cluster](./cluster.jpg)
@@ -28,8 +30,8 @@ ServiceClusterTest
 
 ## 4.4 负载均衡 LoadBalance
 
+ServiceLoadBalanceTest
 
 # 5. 服务调用
 
-
-
+ServiceInvokeTest
