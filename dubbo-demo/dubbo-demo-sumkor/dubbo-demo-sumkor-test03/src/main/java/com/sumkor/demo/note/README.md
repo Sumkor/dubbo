@@ -16,9 +16,13 @@ ServiceReferenceTest
 
 ## 4.1 服务目录 Directory
 
+ServiceDirectoryTest
+
 ## 4.2 服务路由 Router
 
 ## 4.3 集群 Cluster
+
+![Cluster](./cluster.jpg)
 
 ServiceClusterTest
 

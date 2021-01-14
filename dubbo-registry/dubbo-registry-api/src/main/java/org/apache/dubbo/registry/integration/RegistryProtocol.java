@@ -436,7 +436,7 @@ public class RegistryProtocol implements Protocol {
     @SuppressWarnings("unchecked")
     public <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException {
         url = getRegistryUrl(url);
-        Registry registry = registryFactory.getRegistry(url); // 获取注册中心实例
+        Registry registry = registryFactory.getRegistry(url); // 获取或创建注册中心实例，eg: ZookeeperRegistry
         if (RegistryService.class.equals(type)) {
             return proxyFactory.getInvoker((T) registry, type, url);
         }
@@ -465,7 +465,7 @@ public class RegistryProtocol implements Protocol {
             directory.setRegisteredConsumerUrl(subscribeUrl);
             registry.register(directory.getRegisteredConsumerUrl()); // 注册 registeredConsumerUrl // 注册服务消费者，在 consumers 目录下新节点
         }
-        directory.buildRouterChain(subscribeUrl);
+        directory.buildRouterChain(subscribeUrl); // 构建 RouterChain
         directory.subscribe(toSubscribeUrl(subscribeUrl)); // 订阅 subscribeUrl // 订阅 providers、configurators、routers 等节点数据，构建 invoker 如 DubboInvoker
 
         Invoker<T> invoker = cluster.join(directory); // 一个注册中心可能有多个服务提供者，因此这里需要将多个服务提供者合并为一个

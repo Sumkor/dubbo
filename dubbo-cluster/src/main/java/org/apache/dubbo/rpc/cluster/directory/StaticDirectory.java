@@ -72,7 +72,7 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
             return false;
         }
         for (Invoker<T> invoker : invokers) {
-            if (invoker.isAvailable()) {
+            if (invoker.isAvailable()) { // 只要有一个 Invoker 是可用的，就认为当前目录是可用的
                 return true;
             }
         }

@@ -11,7 +11,7 @@ import org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper;
 import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
 
 /**
- * 集群
+ * 集群容错
  * https://dubbo.apache.org/zh/docs/v2.7/dev/source/cluster/
  *
  * 对于服务消费者来说，同一环境下出现了多个服务提供者。这时会出现一个问题，服务消费者需要决定选择哪个服务提供者进行调用。

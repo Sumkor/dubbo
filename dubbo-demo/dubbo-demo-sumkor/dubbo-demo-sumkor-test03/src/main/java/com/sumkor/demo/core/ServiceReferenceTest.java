@@ -13,12 +13,20 @@ import org.apache.dubbo.registry.integration.RegistryProtocol;
 import org.apache.dubbo.registry.support.AbstractRegistry;
 import org.apache.dubbo.registry.support.FailbackRegistry;
 import org.apache.dubbo.registry.zookeeper.ZookeeperRegistry;
+import org.apache.dubbo.remoting.exchange.Exchangers;
+import org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger;
+import org.apache.dubbo.remoting.transport.netty4.NettyClient;
+import org.apache.dubbo.remoting.transport.netty4.NettyTransporter;
 import org.apache.dubbo.rpc.Protocol$Adaptive;
+import org.apache.dubbo.rpc.ProxyFactory$Adaptive;
 import org.apache.dubbo.rpc.cluster.Cluster;
+import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.RouterChain;
 import org.apache.dubbo.rpc.cluster.interceptor.ConsumerContextClusterInterceptor;
 import org.apache.dubbo.rpc.cluster.support.FailoverCluster;
 import org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker;
+import org.apache.dubbo.rpc.cluster.support.wrapper.AbstractCluster;
+import org.apache.dubbo.rpc.cluster.support.wrapper.MockClusterWrapper;
 import org.apache.dubbo.rpc.protocol.AbstractProtocol;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
@@ -28,6 +36,7 @@ import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.AbstractProxyFactory;
 import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
+import org.apache.dubbo.rpc.proxy.wrapper.StubProxyFactoryWrapper;
 import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
 
 /**
@@ -174,9 +183,12 @@ public class ServiceReferenceTest {
      * 首先获取到 url 如下：
      *     url = zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-consumer&dubbo=2.0.2&pid=13116&refer=application%3Ddubbo-demo-api-consumer%26dubbo%3D2.0.2%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D13116%26register.ip%3D172.20.3.201%26side%3Dconsumer%26sticky%3Dfalse%26timestamp%3D1609745306260&timestamp=1609745474785
      *
+     * Registry registry = registryFactory.getRegistry(url);
+     *
+     * 创建注册中心实例 {@link ZookeeperRegistry}，根据 url 连接 zk 得到 zkClient 实例。
+     *
      * Cluster cluster = Cluster.getCluster(qs.get(CLUSTER_KEY));
      *
-     * 根据 url，由 SPI 得到 Registry 实例为 {@link ZookeeperRegistry}
      * 根据 url，由于 CLUSTER_KEY 为空，使用 {@link Cluster#DEFAULT}，得到 Cluster 实例为 {@link FailoverCluster}
      * ！！！得到包装类
      * MockClusterWrapper(FailoverCluster)
@@ -232,7 +244,12 @@ public class ServiceReferenceTest {
      * B.1 通知 providers url 监听器
      *
      * @see RegistryDirectory#notify(java.util.List)
+     *
+     * 设置 {@link RegistryDirectory#overrideDirectoryUrl} 即 {@link Directory#getConsumerUrl()} 的值：
      * @see RegistryDirectory#refreshOverrideAndInvoker(java.util.List)
+     *     zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-consumer&dubbo=2.0.2&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=29644&register.ip=172.20.3.201&side=consumer&sticky=false&timestamp=1610526156942
+     *
+     * 根据 provider url 刷新 Invoker
      * @see RegistryDirectory#refreshInvoker(java.util.List)
      * @see RegistryDirectory#toInvokers(java.util.List)
      *
@@ -248,7 +265,7 @@ public class ServiceReferenceTest {
      * invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
      * 这里 serviceType = org.apache.dubbo.demo.DemoService 类
      *
-     * 这里得到的 invoker
+     * 这里得到的 invoker，由 {@link RegistryDirectory#refreshInvoker(java.util.List)} 可知存储在各种位置：
      * 存储在 {@link RegistryDirectory#urlInvokerMap}，key 为 url，value 为 {@link DubboInvoker} 的包装类 {@link RegistryDirectory.InvokerDelegate}
      * 存储在 {@link RegistryDirectory#invokers}
      * 存储在 {@link RouterChain#invokers}
@@ -310,8 +327,11 @@ public class ServiceReferenceTest {
      * @see MockClusterWrapper#join(org.apache.dubbo.rpc.cluster.Directory)
      *
      * @see AbstractCluster#join(org.apache.dubbo.rpc.cluster.Directory)
-     * @see FailoverCluster#doJoin(org.apache.dubbo.rpc.cluster.Directory) 得到 {@link FailoverClusterInvoker}
-     * @see AbstractCluster#buildClusterInterceptors(org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker, java.lang.String) 得到拦截器 {@link ConsumerContextClusterInterceptor}
+     * @see FailoverCluster#doJoin(org.apache.dubbo.rpc.cluster.Directory)
+     * 得到 {@link FailoverClusterInvoker}
+     *
+     * @see AbstractCluster#buildClusterInterceptors(org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker, java.lang.String)
+     * 得到拦截器 {@link ConsumerContextClusterInterceptor}
      *
      * 最后得到 invoker 为 MockClusterInvoker 对象实例，其中：
      * directory 属性 RegistryDirectory 实例，该对象包含远程服务接口信息，实例化过程见 {@link RegistryProtocol#doRefer}；
