@@ -1,5 +1,8 @@
 package com.sumkor.demo.core;
 
+import com.alibaba.spring.beans.factory.annotation.ConfigurationBeanBindingRegistrar;
+import com.alibaba.spring.beans.factory.annotation.ConfigurationBeanBindingsRegister;
+import com.alibaba.spring.beans.factory.annotation.EnableConfigurationBeanBindings;
 import com.sumkor.demo.DemoServiceImpl;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.bytecode.Wrapper;
@@ -7,6 +10,9 @@ import org.apache.dubbo.common.extension.ExtensionLoader;
 import org.apache.dubbo.config.AbstractConfig;
 import org.apache.dubbo.config.ServiceConfig;
 import org.apache.dubbo.config.bootstrap.DubboBootstrap;
+import org.apache.dubbo.config.context.ConfigManager;
+import org.apache.dubbo.config.spring.ServiceBean;
+import org.apache.dubbo.config.spring.beans.factory.annotation.ServiceClassPostProcessor;
 import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
 import org.apache.dubbo.demo.DemoService;
 import org.apache.dubbo.registry.ListenerRegistryWrapper;
@@ -27,6 +33,8 @@ import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.DefaultSingletonBeanRegistry;
+import org.springframework.context.annotation.ConfigurationClassPostProcessor;
 import org.springframework.context.event.SimpleApplicationEventMulticaster;
 import org.springframework.context.support.AbstractApplicationContext;
 
@@ -62,15 +70,55 @@ public class ServiceExportTest {
      *
      * Spring 容器启动
      * @see AbstractApplicationContext#refresh()
+     * @see AbstractApplicationContext#invokeBeanFactoryPostProcessors(org.springframework.beans.factory.config.ConfigurableListableBeanFactory)
+     *
+     * 1. 扫描 @DubboService 注解并注册为 BeanDefinition
+     * @see ServiceClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     * @see ServiceClassPostProcessor#registerServiceBeans(java.util.Set, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     * @see ServiceClassPostProcessor#findServiceBeanDefinitionHolders(org.springframework.context.annotation.ClassPathBeanDefinitionScanner, java.lang.String, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.springframework.beans.factory.support.BeanNameGenerator)
+     *
+     * 将扫描到的 @DubboService 标注的类，beanName = ServiceBean:org.apache.dubbo.demo.DemoService，beanClass = {@link ServiceBean}
+     * @see ServiceClassPostProcessor#registerServiceBean(org.springframework.beans.factory.config.BeanDefinitionHolder, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.apache.dubbo.config.spring.context.annotation.DubboClassPathBeanDefinitionScanner)
+     *
+     *
+     * 2. 解析配置文件 dubbo-provider.properties
+     * @see ConfigurationClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     * @see ConfigurationClassPostProcessor#processConfigBeanDefinitions(org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     *
+     * 解析配置文件
+     * beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple
+     * @see org.springframework.context.annotation.ConfigurationClassParser#parse(java.util.Set)
+     *
+     * 注册 BeanDefinion
+     * @see org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitions(java.util.Set)
+     * @see org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsFromRegistrars(java.util.Map)
+     * @see ConfigurationBeanBindingsRegister#registerBeanDefinitions(org.springframework.core.type.AnnotationMetadata, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     *
+     * 可知 {@link ConfigurationBeanBindingsRegister} 用于处理注解 {@link EnableConfigurationBeanBindings}，从注解上读取到的值是从配置文件解析而来的，依次将解析到的 BeanDefinion 进行注册
+     * @see ConfigurationBeanBindingRegistrar#registerConfigurationBeanDefinitions(java.util.Map, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     *
+     *
+     * 3. 实例化 bean，其中 beanName = registryConfig、applicationConfig、protocolConfig、ServiceBean:org.apache.dubbo.demo.DemoService 等
+     * @see DefaultSingletonBeanRegistry#getSingleton(java.lang.String, org.springframework.beans.factory.ObjectFactory)
+     *
+     * 需要执行父类的 @PostConstruct 方法
+     * @see AbstractConfig#addIntoConfigManager()
+     * @see ConfigManager#addConfig(org.apache.dubbo.config.AbstractConfig, boolean)
+     * 执行之后，将 beanName 的实例存储在 configsCache 之中
+     *
+     *
+     * 4. 触发监听器
      * @see AbstractApplicationContext#finishRefresh()
      * @see AbstractApplicationContext#publishEvent(org.springframework.context.ApplicationEvent)
      * @see SimpleApplicationEventMulticaster#invokeListener(org.springframework.context.ApplicationListener, org.springframework.context.ApplicationEvent)
      *
-     * 触发监听器
+     * 启用 DubboBootstrap
      * @see DubboBootstrapApplicationListener#onApplicationContextEvent(org.springframework.context.event.ApplicationContextEvent)
      * @see DubboBootstrapApplicationListener#onContextRefreshedEvent(org.springframework.context.event.ContextRefreshedEvent)
      *
-     *
+     */
+
+    /**
      * 1. 服务发布入口
      * @see DubboBootstrap#start()
      *

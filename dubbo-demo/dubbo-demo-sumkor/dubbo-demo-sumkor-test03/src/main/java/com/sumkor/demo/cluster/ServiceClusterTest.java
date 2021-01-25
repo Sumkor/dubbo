@@ -46,6 +46,14 @@ import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
  *     Broadcast Cluster - 广播
  *
  *
+ *
+ * Dubbo 容错策略既可以在服务提供方配置，也可以服务调用方进行配置。
+ * 而重试次数的配置则更为灵活，既可以在服务级别进行配置，也可以在方法级别进行配置。
+ * 具体优先顺序为：
+ * 服务调用方方法级配置 > 服务调用方服务级配置 > 服务提供方方法级配置 > 服务提供方服务级配置
+ * https://dubbo.apache.org/zh/blog/2018/08/22/dubbo-%E9%9B%86%E7%BE%A4%E5%AE%B9%E9%94%99/
+ *
+ *
  * @author Sumkor
  * @since 2021/1/6
  */
@@ -128,7 +136,7 @@ public class ServiceClusterTest {
     /**
      * 集群工作第二阶段：在服务消费者的远程调用期间，进行负载均衡和集群容错处理。
      *
-     * 1. 发起调用，入口
+     * 发起调用，入口
      * @see AbstractClusterInvoker#invoke(org.apache.dubbo.rpc.Invocation)
      *
      * 其中，列举 Invoker
@@ -139,7 +147,7 @@ public class ServiceClusterTest {
      *
      *
      *
-     * 2. 失败自动切换，入口
+     * 1. 失败自动切换，入口
      * @see FailoverClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
      * FailoverClusterInvoker 在调用失败时，会自动切换 Invoker 进行重试。默认配置下，Dubbo 会使用这个类作为缺省 Cluster Invoker。
      *
@@ -163,7 +171,7 @@ public class ServiceClusterTest {
      *
      *
      *
-     * 3. 失败自动恢复，入口
+     * 2. 失败自动恢复，入口
      * @see FailbackClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
      * FailbackClusterInvoker 会在调用失败后，返回一个空结果给服务消费者。并通过定时任务对失败的调用进行重传，适合执行消息通知等操作。
      *
@@ -175,26 +183,26 @@ public class ServiceClusterTest {
      *
      *
      *
-     * 4. 快速失败，入口
+     * 3. 快速失败，入口
      * @see FailfastClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
      * FailfastClusterInvoker 只会进行一次调用，失败后立即抛出异常。适用于幂等操作，比如新增记录。
      *
      *
      *
-     * 5. 失败安全，入口
+     * 4. 失败安全，入口
      * @see FailsafeClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
      * FailsafeClusterInvoker 是一种失败安全的 Cluster Invoker。所谓的失败安全是指，当调用过程中出现异常时，FailsafeClusterInvoker 仅会打印异常，而不会抛出异常。适用于写入审计日志等操作。
      *
      *
      *
-     * 6. 并行调用，入口
+     * 5. 并行调用，入口
      * @see ForkingClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
      * ForkingClusterInvoker 会在运行时通过线程池创建多个线程，并发调用多个服务提供者。只要有一个服务提供者成功返回了结果，doInvoke 方法就会立即结束运行。
      * 应用场景是在一些对实时性要求比较高读操作（注意是读操作，并行写操作可能不安全）下使用，但这将会耗费更多的资源。
      *
      *
      *
-     * 7. 广播，入口
+     * 6. 广播，入口
      * @see BroadcastClusterInvoker#doInvoke(org.apache.dubbo.rpc.Invocation, java.util.List, org.apache.dubbo.rpc.cluster.LoadBalance)
      * BroadcastClusterInvoker 会逐个调用每个服务提供者，如果其中一台报错，在循环调用结束后，BroadcastClusterInvoker 会抛出异常。
      * 该类通常用于通知所有提供者更新缓存或日志等本地资源信息。

@@ -157,7 +157,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
 
         // refactor @since 2.7.7
         serviceAnnotationTypes.forEach(annotationType -> {
-            scanner.addIncludeFilter(new AnnotationTypeFilter(annotationType));
+            scanner.addIncludeFilter(new AnnotationTypeFilter(annotationType)); // scanner添加对@DubboService注解的支持
         });
 
         for (String packageToScan : packagesToScan) {
@@ -281,7 +281,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         Annotation service = findServiceAnnotation(beanClass);
 
         /**
-         * The {@link AnnotationAttributes} of @Service annotation
+         * The {@link AnnotationAttributes} of @Service annotation // 得到 @DubboService 的各种参数
          */
         AnnotationAttributes serviceAnnotationAttributes = getAnnotationAttributes(service, false, false);
 
@@ -296,7 +296,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         String beanName = generateServiceBeanName(serviceAnnotationAttributes, interfaceClass);
 
         if (scanner.checkCandidate(beanName, serviceBeanDefinition)) { // check duplicated candidate bean
-            registry.registerBeanDefinition(beanName, serviceBeanDefinition);
+            registry.registerBeanDefinition(beanName, serviceBeanDefinition); // 注册ServiceBean
 
             if (logger.isInfoEnabled()) {
                 logger.info("The BeanDefinition[" + serviceBeanDefinition +
@@ -388,7 +388,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
                                                               Class<?> interfaceClass,
                                                               String annotatedServiceBeanName) {
 
-        BeanDefinitionBuilder builder = rootBeanDefinition(ServiceBean.class);
+        BeanDefinitionBuilder builder = rootBeanDefinition(ServiceBean.class); // @DubboService注解类 转换为 ServiceBean
 
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
 

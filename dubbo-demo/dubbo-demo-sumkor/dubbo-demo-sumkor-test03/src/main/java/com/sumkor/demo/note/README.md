@@ -24,9 +24,9 @@ ServiceRouteTest
 
 ## 4.3 集群 Cluster
 
-![Cluster](./cluster.jpg)
-
 ServiceClusterTest
+
+![Cluster](./cluster.jpg)
 
 ## 4.4 负载均衡 LoadBalance
 
@@ -35,3 +35,5 @@ ServiceLoadBalanceTest
 # 5. 服务调用
 
 ServiceInvokeTest
+
+![send-request-process](./send-request-process.jpg)
