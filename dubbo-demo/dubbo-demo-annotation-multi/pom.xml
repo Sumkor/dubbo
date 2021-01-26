@@ -13,6 +13,7 @@
     <packaging>pom</packaging>
     <modules>
         <module>dubbo-demo-annotation-multi-consumer</module>
+        <module>dubbo-demo-annotation-multi-provider</module>
     </modules>
 
 

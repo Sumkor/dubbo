@@ -6,6 +6,7 @@
         <artifactId>dubbo-demo-annotation-multi</artifactId>
         <groupId>org.apache.dubbo</groupId>
         <version>2.7.8</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
