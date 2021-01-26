@@ -90,7 +90,7 @@ public class ServiceReferenceTest {
      * @see AbstractAnnotationBeanPostProcessor#postProcessPropertyValues(org.springframework.beans.PropertyValues, java.beans.PropertyDescriptor[], java.lang.Object, java.lang.String)
      * @see AbstractAnnotationBeanPostProcessor#getInjectedObject(org.springframework.core.annotation.AnnotationAttributes, java.lang.Object, java.lang.String, java.lang.Class, org.springframework.beans.factory.annotation.InjectionMetadata.InjectedElement)
      *
-    * 进入 Dubbo 与 Spring 框架整合的位置，这里创建 ReferenceBean，用于 @DubboReference 注解的属性注入。类似 {@link AutowiredAnnotationBeanPostProcessor} 用于处理 @Autowired 注解
+     * 进入 Dubbo 与 Spring 框架整合的位置，这里创建 ReferenceBean，用于 @DubboReference 注解的属性注入。类似 {@link AutowiredAnnotationBeanPostProcessor} 用于处理 @Autowired 注解
      * @see ReferenceAnnotationBeanPostProcessor#doGetInjectedBean(org.springframework.core.annotation.AnnotationAttributes, java.lang.Object, java.lang.String, java.lang.Class, org.springframework.beans.factory.annotation.InjectionMetadata.InjectedElement)
      *
      * 一步一步调试进去

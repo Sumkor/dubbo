@@ -14,6 +14,9 @@ import org.apache.dubbo.config.context.ConfigManager;
 import org.apache.dubbo.config.spring.ServiceBean;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ServiceClassPostProcessor;
 import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
+import org.apache.dubbo.config.spring.context.annotation.DubboConfigConfiguration;
+import org.apache.dubbo.config.spring.context.annotation.DubboConfigConfigurationRegistrar;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubboConfig;
 import org.apache.dubbo.demo.DemoService;
 import org.apache.dubbo.registry.ListenerRegistryWrapper;
 import org.apache.dubbo.registry.integration.RegistryProtocol;
@@ -91,17 +94,21 @@ public class ServiceExportTest {
      * @see ConfigurationClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      * @see ConfigurationClassPostProcessor#processConfigBeanDefinitions(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
-     * 解析配置文件
+     * 2.1 解析配置文件
      * beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple
      * @see org.springframework.context.annotation.ConfigurationClassParser#parse(java.util.Set)
      *
-     * 注册 BeanDefinion
+     * 2.2 注册 BeanDefinion
      * @see org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitions(java.util.Set)
      * @see org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsFromRegistrars(java.util.Map)
      * @see ConfigurationBeanBindingsRegister#registerBeanDefinitions(org.springframework.core.type.AnnotationMetadata, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
      * 可知 {@link ConfigurationBeanBindingsRegister} 用于处理注解 {@link EnableConfigurationBeanBindings}，从注解上读取到的值是从配置文件解析而来的，依次将解析到的 BeanDefinion 进行注册
      * @see ConfigurationBeanBindingRegistrar#registerConfigurationBeanDefinitions(java.util.Map, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     *
+     * 可知 {@link DubboConfigConfiguration} 设置了配置文件中的前缀，与配置类的对应关系。
+     * 而启用了注解 {@link EnableDubboConfig}，默认会把 beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple 注册到 Spring 之中。
+     * @see DubboConfigConfigurationRegistrar#registerBeanDefinitions(org.springframework.core.type.AnnotationMetadata, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
      *
      * 3. 实例化 bean，其中 beanName = registryConfig、applicationConfig、protocolConfig、ServiceBean:org.apache.dubbo.demo.DemoService 等。
