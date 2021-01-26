@@ -23,13 +23,17 @@ import org.apache.dubbo.registry.zookeeper.ZookeeperRegistry;
 import org.apache.dubbo.registry.zookeeper.ZookeeperRegistryFactory;
 import org.apache.dubbo.remoting.Transporters;
 import org.apache.dubbo.remoting.exchange.Exchangers;
+import org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeServer;
 import org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger;
+import org.apache.dubbo.remoting.transport.AbstractServer;
+import org.apache.dubbo.remoting.transport.netty4.NettyServer;
 import org.apache.dubbo.remoting.transport.netty4.NettyTransporter;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.listener.ListenerExporterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
 import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
+import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocolServer;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
 import org.junit.jupiter.api.Test;
@@ -62,6 +66,8 @@ import org.springframework.context.support.AbstractApplicationContext;
 public class ServiceExportTest {
 
     /**
+     * Dubbo 与 Spring 整合
+     *
      * API 方式发布服务
      * dubbo-demo/dubbo-demo-api/dubbo-demo-api-provider/src/main/java/org/apache/dubbo/demo/provider/Application.java
      *
@@ -77,7 +83,7 @@ public class ServiceExportTest {
      * @see ServiceClassPostProcessor#registerServiceBeans(java.util.Set, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      * @see ServiceClassPostProcessor#findServiceBeanDefinitionHolders(org.springframework.context.annotation.ClassPathBeanDefinitionScanner, java.lang.String, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.springframework.beans.factory.support.BeanNameGenerator)
      *
-     * 将扫描到的 @DubboService 标注的类，beanName = ServiceBean:org.apache.dubbo.demo.DemoService，beanClass = {@link ServiceBean}
+     * 将扫描到的 @DubboService 标注的类注册到 BeanDefinitionRegister，其中 beanName = ServiceBean:org.apache.dubbo.demo.DemoService，beanClass = {@link ServiceBean}
      * @see ServiceClassPostProcessor#registerServiceBean(org.springframework.beans.factory.config.BeanDefinitionHolder, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.apache.dubbo.config.spring.context.annotation.DubboClassPathBeanDefinitionScanner)
      *
      *
@@ -98,7 +104,8 @@ public class ServiceExportTest {
      * @see ConfigurationBeanBindingRegistrar#registerConfigurationBeanDefinitions(java.util.Map, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
      *
-     * 3. 实例化 bean，其中 beanName = registryConfig、applicationConfig、protocolConfig、ServiceBean:org.apache.dubbo.demo.DemoService 等
+     * 3. 实例化 bean，其中 beanName = registryConfig、applicationConfig、protocolConfig、ServiceBean:org.apache.dubbo.demo.DemoService 等。
+     * 注意到 ServiceBean 继承了 ServiceConfig，它们都继承了 AbstractConfig。
      * @see DefaultSingletonBeanRegistry#getSingleton(java.lang.String, org.springframework.beans.factory.ObjectFactory)
      *
      * 需要执行父类的 @PostConstruct 方法
@@ -122,6 +129,9 @@ public class ServiceExportTest {
      * 1. 服务发布入口
      * @see DubboBootstrap#start()
      *
+     * 从 ConfigManager 之中的缓存 configsCache 之中，获取 ServiceConfigBase 类型的所有实例（即 ServiceBean 实例），依次遍历进行发布
+     * @see DubboBootstrap#exportServices()
+     *
      * 是否配置延迟发布 && 是否已发布 && 是不是已被取消发布，否者发布服务
      * @see org.apache.dubbo.config.ServiceConfig#export()
      *
@@ -139,7 +149,7 @@ public class ServiceExportTest {
      *
      * 2. 构造参数 map，再利用 map 构造 url
      * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
-     *     url = dubbo://172.168.1.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.168.1.1&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
+     *     url = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.20.3.201&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
      *
      *
      *
@@ -148,7 +158,9 @@ public class ServiceExportTest {
      * @see ServiceConfig#exportLocal(org.apache.dubbo.common.URL)
      *
      * 3.1 修改 url 中的协议为 injvm
-     *     local = injvm://127.0.0.1/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.168.1.1&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
+     *     local = injvm://127.0.0.1/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.20.3.201&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
+     *     ref = DemoServiceImpl 实例
+     *     interfaceClass = interface org.apache.dubbo.demo.DemoService
      *
      * 3.2 PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, local)
      *
@@ -228,8 +240,8 @@ public class ServiceExportTest {
      *
      * 发布之前，首先获取各个 url 如下：
      *     registryUrl = zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-api-provider&dubbo=2.0.2&export=dubbo%3A%2F%2F172.168.1.1%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-api-provider%26bind.ip%3D172.168.1.1%26bind.port%3D20880%26default%3Dtrue%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D4856%26release%3D%26side%3Dprovider%26timestamp%3D1608481215162&pid=4856&timestamp=1608481214730
-     *     providerUrl = dubbo://172.168.1.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.168.1.1&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=4856&release=&side=provider&timestamp=1608481215162
-     *     overrideSubscribeUrl = provider://172.168.1.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.168.1.1&bind.port=20880&category=configurators&check=false&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=4856&release=&side=provider&timestamp=1608481215162
+     *     providerUrl = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.20.3.201&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=4856&release=&side=provider&timestamp=1608481215162
+     *     overrideSubscribeUrl = provider://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.20.3.201&bind.port=20880&category=configurators&check=false&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=4856&release=&side=provider&timestamp=1608481215162
      *
      * 4.3.1 建立并发布 dubbo 协议的服务
      * @see RegistryProtocol#doLocalExport(org.apache.dubbo.rpc.Invoker, org.apache.dubbo.common.URL)
@@ -255,6 +267,8 @@ public class ServiceExportTest {
      * 疑问，如果有多个 dubbo接口 服务发布时，对多个 url 进行遍历的情况下，如何避免多次建立 netty 服务？
      * 在同一台机器上（单网卡），同一个端口上仅允许启动一个服务器实例。若某个端口上已有服务器实例，此时则调用 reset 方法重置服务器的一些配置。
      *
+     * A. 启动服务
+     *
      * @see DubboProtocol#createServer(org.apache.dubbo.common.URL)
      *
      * 默认建立 Netty 服务，一步一步调试进去，扒开一层层 SPI，调用链如下：
@@ -263,6 +277,18 @@ public class ServiceExportTest {
      * @see HeaderExchanger#bind(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.exchange.ExchangeHandler)
      * @see Transporters#bind(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.ChannelHandler...)
      * @see NettyTransporter#bind(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.ChannelHandler)
+     * @see NettyServer#NettyServer(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.ChannelHandler)
+     * 设置 netty 服务的 ip、port，这些值从 url 中获取，这里得到 ip = 172.20.3.201，port = 20880
+     * @see AbstractServer#AbstractServer(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.ChannelHandler)
+     * 启动 netty 服务
+     * @see NettyServer#doOpen()
+     *
+     *
+     * B. 重置服务
+     * 当存在多个 @DubboService 时，第一个服务发布时已经创建 netty 服务，后面的服务发布时，需要进行重置
+     * @see DubboProtocolServer#reset(org.apache.dubbo.common.URL)
+     * @see HeaderExchangeServer#reset(org.apache.dubbo.common.URL)
+     * @see AbstractServer#reset(org.apache.dubbo.common.URL)
      *
      *
      *
@@ -287,6 +313,23 @@ public class ServiceExportTest {
      *
      * 在 zookeeper 上创建临时节点：
      * /dubbo/org.apache.dubbo.demo.DemoService/providers/dubbo%3A%2F%2F172.20.3.201%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-api-provider%26default%3Dtrue%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D25404%26release%3D%26side%3Dprovider%26timestamp%3D1608630211892
+     */
+
+    /**
+     * 多注册中心、多协议
+     *
+     * 配置文件：
+     * dubbo-demo/dubbo-demo-annotation-multi/dubbo-demo-annotation-multi-provider/src/main/resources/spring/dubbo-provider.properties
+     *
+     * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
+     * 得到的 url 如下：
+     *
+     *     registry://127.0.0.1:3181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-provider&dubbo=2.0.2&pid=20108&registry=zookeeper&timestamp=1611643255286
+     *     registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-provider&default=true&dubbo=2.0.2&pid=20108&registry=zookeeper&timestamp=1611643255290
+     *
+     *     dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=172.20.3.201&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=20108&release=&server=netty4&side=provider&timestamp=1611643286192
+     *     http://172.20.3.201:8888/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=172.20.3.201&bind.port=8888&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=20108&release=&server=tomcat&side=provider&timestamp=1611643422494
+     *
      */
 
     /**

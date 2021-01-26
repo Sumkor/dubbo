@@ -14,11 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.dubbo.demo;
+package org.apache.dubbo.demo.consumer.comp;
 
-/**
- *
- */
-public interface GreetingService {
-    String hello();
+import org.apache.dubbo.config.annotation.DubboReference;
+import org.apache.dubbo.demo.DemoService;
+import org.springframework.stereotype.Component;
+
+import java.util.concurrent.CompletableFuture;
+
+@Component("demoServiceComponent")
+public class DemoServiceComponent implements DemoService {
+    @DubboReference
+    private DemoService demoService;
+
+    @Override
+    public String sayHello(String name) {
+        return demoService.sayHello(name);
+    }
+
+    @Override
+    public CompletableFuture<String> sayHelloAsync(String name) {
+        return null;
+    }
 }

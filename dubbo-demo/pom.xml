@@ -36,6 +36,7 @@
         <module>dubbo-demo-annotation</module>
         <module>dubbo-demo-api</module>
         <module>dubbo-demo-sumkor</module>
+        <module>dubbo-demo-annotation-multi</module>
     </modules>
 
     <dependencyManagement>

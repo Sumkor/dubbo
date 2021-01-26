@@ -314,7 +314,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
         List<URL> registryURLs = ConfigValidationUtils.loadRegistries(this, true); // 加载注册中心链接，可存在多个注册中心
 
-        for (ProtocolConfig protocolConfig : protocols) { // 遍历协议，每个协议都需要注册到注册中心
+        for (ProtocolConfig protocolConfig : protocols) { // 多协议遍历，每个协议都需要注册到注册中心
             String pathKey = URL.buildKey(getContextPath(protocolConfig)
                     .map(p -> p + "/" + path)
                     .orElse(path), group, version);
@@ -462,7 +462,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
             // export to remote if the config is not local (export to local only when config is local) // 远程发布
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
                 if (CollectionUtils.isNotEmpty(registryURLs)) { // 远程发布至注册中心
-                    for (URL registryURL : registryURLs) {
+                    for (URL registryURL : registryURLs) { // 多注册中心遍历
                         //if protocol is only injvm ,not register
                         if (LOCAL_PROTOCOL.equalsIgnoreCase(url.getProtocol())) {
                             continue;

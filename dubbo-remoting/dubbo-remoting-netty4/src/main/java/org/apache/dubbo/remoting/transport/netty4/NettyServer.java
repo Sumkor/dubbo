@@ -91,7 +91,7 @@ public class NettyServer extends AbstractServer implements RemotingServer {
                 getUrl().getPositiveParameter(IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS),
                 "NettyServerWorker");
 
-        final NettyServerHandler nettyServerHandler = new NettyServerHandler(getUrl(), this);
+        final NettyServerHandler nettyServerHandler = new NettyServerHandler(getUrl(), this); // 自定义pipeline，用于处理请求
         channels = nettyServerHandler.getChannels();
 
         bootstrap.group(bossGroup, workerGroup)
