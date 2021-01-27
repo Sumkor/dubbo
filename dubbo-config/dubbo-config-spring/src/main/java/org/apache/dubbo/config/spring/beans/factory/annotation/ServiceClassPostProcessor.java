@@ -290,7 +290,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         String annotatedServiceBeanName = beanDefinitionHolder.getBeanName();
 
         AbstractBeanDefinition serviceBeanDefinition =
-                buildServiceBeanDefinition(service, serviceAnnotationAttributes, interfaceClass, annotatedServiceBeanName);
+                buildServiceBeanDefinition(service, serviceAnnotationAttributes, interfaceClass, annotatedServiceBeanName); // 构造 ServiceBean 的 BeanDefinition
 
         // ServiceBean Bean name
         String beanName = generateServiceBeanName(serviceAnnotationAttributes, interfaceClass);
@@ -388,7 +388,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
                                                               Class<?> interfaceClass,
                                                               String annotatedServiceBeanName) {
 
-        BeanDefinitionBuilder builder = rootBeanDefinition(ServiceBean.class); // @DubboService注解类 转换为 ServiceBean
+        BeanDefinitionBuilder builder = rootBeanDefinition(ServiceBean.class); // @DubboService注解类 注册为 ServiceBean
 
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
 

@@ -2,6 +2,7 @@ package com.sumkor.demo.core;
 
 import com.alibaba.spring.beans.factory.annotation.ConfigurationBeanBindingRegistrar;
 import com.alibaba.spring.beans.factory.annotation.ConfigurationBeanBindingsRegister;
+import com.alibaba.spring.beans.factory.annotation.EnableConfigurationBeanBinding;
 import com.alibaba.spring.beans.factory.annotation.EnableConfigurationBeanBindings;
 import com.sumkor.demo.DemoServiceImpl;
 import org.apache.dubbo.common.URL;
@@ -10,12 +11,11 @@ import org.apache.dubbo.common.extension.ExtensionLoader;
 import org.apache.dubbo.config.AbstractConfig;
 import org.apache.dubbo.config.ServiceConfig;
 import org.apache.dubbo.config.bootstrap.DubboBootstrap;
-import org.apache.dubbo.config.context.ConfigManager;
 import org.apache.dubbo.config.spring.ServiceBean;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ServiceClassPostProcessor;
-import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
 import org.apache.dubbo.config.spring.context.annotation.DubboConfigConfiguration;
 import org.apache.dubbo.config.spring.context.annotation.DubboConfigConfigurationRegistrar;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubboConfig;
 import org.apache.dubbo.demo.DemoService;
 import org.apache.dubbo.registry.ListenerRegistryWrapper;
@@ -40,9 +40,7 @@ import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocolServer;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.support.DefaultSingletonBeanRegistry;
 import org.springframework.context.annotation.ConfigurationClassPostProcessor;
-import org.springframework.context.event.SimpleApplicationEventMulticaster;
 import org.springframework.context.support.AbstractApplicationContext;
 
 /**
@@ -88,27 +86,43 @@ public class ServiceExportTest {
      *
      * 将扫描到的 @DubboService 标注的类注册到 BeanDefinitionRegister，其中 beanName = ServiceBean:org.apache.dubbo.demo.DemoService，beanClass = {@link ServiceBean}
      * @see ServiceClassPostProcessor#registerServiceBean(org.springframework.beans.factory.config.BeanDefinitionHolder, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.apache.dubbo.config.spring.context.annotation.DubboClassPathBeanDefinitionScanner)
+     * @see ServiceClassPostProcessor#buildServiceBeanDefinition(java.lang.annotation.Annotation, org.springframework.core.annotation.AnnotationAttributes, java.lang.Class, java.lang.String)
      *
      *
      * 2. 解析配置文件 dubbo-provider.properties
+     *
+     * 项目启动时，执行 new AnnotationConfigApplicationContext(ProviderConfiguration.class);
+     * 该操作会把 beanName = application.ProviderConfiguration 注册到 BeanDefinition 之中
+     *
+     * 配置类扫描入口
      * @see ConfigurationClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      * @see ConfigurationClassPostProcessor#processConfigBeanDefinitions(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
-     * 2.1 解析配置文件
-     * beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple
+     * 2.1 解析 beanName = application.ProviderConfiguration
      * @see org.springframework.context.annotation.ConfigurationClassParser#parse(java.util.Set)
-     *
-     * 2.2 注册 BeanDefinion
      * @see org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitions(java.util.Set)
-     * @see org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitionsFromRegistrars(java.util.Map)
-     * @see ConfigurationBeanBindingsRegister#registerBeanDefinitions(org.springframework.core.type.AnnotationMetadata, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
-     * 可知 {@link ConfigurationBeanBindingsRegister} 用于处理注解 {@link EnableConfigurationBeanBindings}，从注解上读取到的值是从配置文件解析而来的，依次将解析到的 BeanDefinion 进行注册
+     * 由于 ProviderConfiguration 类配置了 {@link EnableDubbo}，启用注解 {@link EnableDubboConfig}，该注解中引入了 {@link DubboConfigConfigurationRegistrar}
+     * @see DubboConfigConfigurationRegistrar#registerBeanDefinitions(org.springframework.core.type.AnnotationMetadata, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     *
+     * 默认会把 beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple 注册到 Spring 之中。
+     *
+     * 2.2 解析 beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple
+     *
+     * 回到 ConfigurationClassPostProcessor，由于 BeanDefinition 集合之中加了新的 beanName，继续进行遍历解析
+     * @see ConfigurationClassPostProcessor#processConfigBeanDefinitions(org.springframework.beans.factory.support.BeanDefinitionRegistry)
+
+     * 可知 {@link DubboConfigConfiguration} 设置了配置文件中的前缀，与配置类的对应关系。
+     * 其中， {@link EnableConfigurationBeanBindings} 引入了 {@link ConfigurationBeanBindingsRegister}，
+     * {@link EnableConfigurationBeanBinding} 引入了 {@link ConfigurationBeanBindingRegistrar}
+     *
+     * @see org.springframework.context.annotation.ConfigurationClassParser#parse(java.util.Set)
+     * @see org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitions(java.util.Set)
+     * @see ConfigurationBeanBindingsRegister#registerBeanDefinitions(org.springframework.core.type.AnnotationMetadata, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      * @see ConfigurationBeanBindingRegistrar#registerConfigurationBeanDefinitions(java.util.Map, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
-     * 可知 {@link DubboConfigConfiguration} 设置了配置文件中的前缀，与配置类的对应关系。
-     * 而启用了注解 {@link EnableDubboConfig}，默认会把 beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple 注册到 Spring 之中。
-     * @see DubboConfigConfigurationRegistrar#registerBeanDefinitions(org.springframework.core.type.AnnotationMetadata, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     * 最后真正地对配置文件进行读取！！！
+     * @see ConfigurationBeanBindingRegistrar#registerConfigurationBeans(java.lang.String, java.lang.Class, boolean, boolean, boolean, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
      *
      * 3. 实例化 bean，其中 beanName = registryConfig、applicationConfig、protocolConfig、ServiceBean:org.apache.dubbo.demo.DemoService 等。
