@@ -205,7 +205,7 @@ public class RegistryProtocol implements Protocol {
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl); // 发布对应协议的服务，如：启用netty服务器发布dubbo协议的服务
 
         // url to registry
-        final Registry registry = getRegistry(originInvoker); // 根据 URL 加载 Registry 实现类，比如 ZookeeperRegistry
+        final Registry registry = getRegistry(originInvoker); // 根据 URL 加载 Registry 实现类，比如 ZookeeperRegistry，其中创建或获取 zkClient
         final URL registeredProviderUrl = getUrlToRegistry(providerUrl, registryUrl);
 
         // decide if we need to delay publish

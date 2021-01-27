@@ -43,6 +43,7 @@ public class Application {
         service.setInterface(DemoService.class);
         service.setRef(new DemoServiceImpl());
         service.setProtocol(new ProtocolConfig("dubbo"));
+//        service.setProtocol(new ProtocolConfig("injvm"));
 
         DubboBootstrap bootstrap = DubboBootstrap.getInstance();
         bootstrap.application(new ApplicationConfig("dubbo-demo-api-provider"))

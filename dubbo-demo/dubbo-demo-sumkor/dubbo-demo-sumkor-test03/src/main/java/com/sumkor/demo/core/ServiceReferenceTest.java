@@ -3,6 +3,7 @@ package com.sumkor.demo.core;
 import com.alibaba.spring.beans.factory.annotation.AbstractAnnotationBeanPostProcessor;
 import org.apache.dubbo.common.bytecode.Proxy;
 import org.apache.dubbo.config.ReferenceConfig;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.spring.ReferenceBean;
 import org.apache.dubbo.config.spring.beans.factory.annotation.AnnotatedInterfaceConfigBeanBuilder;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ReferenceAnnotationBeanPostProcessor;
@@ -118,7 +119,7 @@ public class ServiceReferenceTest {
      * {"side":"consumer","application":"dubbo-demo-api-consumer","register.ip":"172.20.3.201","release":"","sticky":"false","dubbo":"2.0.2","pid":"4668","interface":"org.apache.dubbo.demo.DemoService","generic":"true","timestamp":"1609727434950"}
      *
      * 先看结果，得到的代理类 Proxy0，其中包含了 {@link InvokerInvocationHandler} 实例。
-     * 如果在 @DubboReference 或 ReferenceConfig.setGeneric 配置了使用泛化，
+     * 如果在 {@link DubboReference} 或 ReferenceConfig.setGeneric 配置了使用泛化，
      * 则得到
      * serviceInterfaceClass = org.apache.dubbo.rpc.service.GenericService
      * 否则

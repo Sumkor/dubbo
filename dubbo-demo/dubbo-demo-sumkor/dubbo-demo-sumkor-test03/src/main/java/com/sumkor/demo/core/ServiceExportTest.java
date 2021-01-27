@@ -13,6 +13,7 @@ import org.apache.dubbo.config.ServiceConfig;
 import org.apache.dubbo.config.bootstrap.DubboBootstrap;
 import org.apache.dubbo.config.spring.ServiceBean;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ServiceClassPostProcessor;
+import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
 import org.apache.dubbo.config.spring.context.annotation.DubboConfigConfiguration;
 import org.apache.dubbo.config.spring.context.annotation.DubboConfigConfigurationRegistrar;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
@@ -33,6 +34,7 @@ import org.apache.dubbo.remoting.transport.netty4.NettyServer;
 import org.apache.dubbo.remoting.transport.netty4.NettyTransporter;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.listener.ListenerExporterWrapper;
+import org.apache.dubbo.rpc.protocol.AbstractProtocol;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
 import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
@@ -41,6 +43,7 @@ import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.ConfigurationClassPostProcessor;
+import org.springframework.context.event.SimpleApplicationEventMulticaster;
 import org.springframework.context.support.AbstractApplicationContext;
 
 /**
@@ -218,7 +221,8 @@ public class ServiceExportTest {
      * @see InjvmProtocol#export(org.apache.dubbo.rpc.Invoker)
      *
      * 最后得到 {@link org.apache.dubbo.rpc.protocol.injvm.InjvmExporter} 并包装在 {@link ListenerExporterWrapper} 之中返回，本地发布结束。
-     *
+     * 并将 key = org.apache.dubbo.demo.DemoService，value = InjvmExporter 存储在 {@link AbstractProtocol#exporterMap} 之中。
+     * 即维护了 org.apache.dubbo.demo.DemoService 与 invoker 的映射关系！
      *
      *
      * 4. 远程发布
@@ -281,6 +285,10 @@ public class ServiceExportTest {
      *     url = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.20.3.201&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=17832&release=&side=provider&timestamp=1608626107025
      *     key = org.apache.dubbo.demo.DemoService:20880
      * 把 invoker 包装成 DubboExporter
+     *
+     * exporterMap.put(key, exporter);
+     * 这里将 key = org.apache.dubbo.demo.DemoService:20880 和 value = DubboExporter 存储在 {@link AbstractProtocol#exporterMap} 之中。
+     * 即维护了 org.apache.dubbo.demo.DemoService:20880 与 invoker 的映射关系！
      *
      * 打开服务端端口，建立服务端 Server，返回 DubboProtocolServer
      * @see DubboProtocol#openServer(org.apache.dubbo.common.URL)

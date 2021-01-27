@@ -16,7 +16,13 @@
         <module>dubbo-demo-sumkor-test01</module>
         <module>dubbo-demo-sumkor-test02</module>
         <module>dubbo-demo-sumkor-test03</module>
+        <module>dubbo-demo-sumkor-injvm</module>
     </modules>
+
+    <properties>
+        <skip_maven_deploy>true</skip_maven_deploy>
+        <slf4j-log4j12.version>1.7.25</slf4j-log4j12.version>
+    </properties>
 
     <dependencies>
         <dependency>
