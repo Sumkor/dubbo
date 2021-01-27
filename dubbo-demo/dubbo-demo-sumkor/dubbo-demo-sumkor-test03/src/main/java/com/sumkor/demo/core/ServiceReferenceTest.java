@@ -23,6 +23,7 @@ import org.apache.dubbo.rpc.ProxyFactory$Adaptive;
 import org.apache.dubbo.rpc.cluster.Cluster;
 import org.apache.dubbo.rpc.cluster.Directory;
 import org.apache.dubbo.rpc.cluster.RouterChain;
+import org.apache.dubbo.rpc.cluster.directory.AbstractDirectory;
 import org.apache.dubbo.rpc.cluster.interceptor.ConsumerContextClusterInterceptor;
 import org.apache.dubbo.rpc.cluster.router.condition.config.AppRouter;
 import org.apache.dubbo.rpc.cluster.router.condition.config.AppRouterFactory;
@@ -154,6 +155,8 @@ public class ServiceReferenceTest {
      * @see ProtocolListenerWrapper#refer(java.lang.Class, org.apache.dubbo.common.URL)
      * @see AbstractProtocol#refer(java.lang.Class, org.apache.dubbo.common.URL)
      * @see InjvmProtocol#protocolBindingRefer(java.lang.Class, org.apache.dubbo.common.URL)
+     *
+     * 当服务提供者与服务消费者在同一进程的时候，服务消费者在这里得到的 InjvmInvoker 其中的 exporterMap，包含了服务提供者发布的 InjvmExporter。
      *
      * 得到层层包装的 InjvmInvoker，最后再与过滤器一同组装，并返回
      * @see ProtocolFilterWrapper#buildInvokerChain(org.apache.dubbo.rpc.Invoker, java.lang.String, java.lang.String)
@@ -305,7 +308,7 @@ public class ServiceReferenceTest {
      * invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
      * 这里 serviceType = org.apache.dubbo.demo.DemoService 类
      *
-     * 这里得到的 invoker，由 {@link RegistryDirectory#refreshInvoker(java.util.List)} 可知存储在各种位置：
+     * 先看结果，这里得到的 invoker，由 {@link RegistryDirectory#refreshInvoker(java.util.List)} 可知存储在各种位置：
      * 存储在 {@link RegistryDirectory#urlInvokerMap}，key 为 url，value 为 {@link DubboInvoker} 的包装类 {@link RegistryDirectory.InvokerDelegate}
      * 存储在 {@link RegistryDirectory#invokers}
      * 存储在 {@link RouterChain#invokers}

@@ -5,7 +5,7 @@ import org.apache.dubbo.config.bootstrap.DubboBootstrap;
 import org.apache.dubbo.config.utils.ReferenceConfigCache;
 
 /**
- * 使用 injvm 协议，只能在统一进程的情况下，才可调用成功
+ * 使用 injvm 协议，只有在同一进程的情况下，才可调用成功
  *
  * @author Sumkor
  * @since 2021/1/27
