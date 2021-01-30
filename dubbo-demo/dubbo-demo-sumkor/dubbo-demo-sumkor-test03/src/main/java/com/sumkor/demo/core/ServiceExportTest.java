@@ -14,10 +14,7 @@ import org.apache.dubbo.config.bootstrap.DubboBootstrap;
 import org.apache.dubbo.config.spring.ServiceBean;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ServiceClassPostProcessor;
 import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
-import org.apache.dubbo.config.spring.context.annotation.DubboConfigConfiguration;
-import org.apache.dubbo.config.spring.context.annotation.DubboConfigConfigurationRegistrar;
-import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
-import org.apache.dubbo.config.spring.context.annotation.EnableDubboConfig;
+import org.apache.dubbo.config.spring.context.annotation.*;
 import org.apache.dubbo.demo.DemoService;
 import org.apache.dubbo.registry.ListenerRegistryWrapper;
 import org.apache.dubbo.registry.integration.RegistryProtocol;
@@ -126,7 +123,13 @@ public class ServiceExportTest {
      * @see ConfigurationBeanBindingRegistrar#registerConfigurationBeans(java.lang.String, java.lang.Class, boolean, boolean, boolean, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
      *
-     * 2. 扫描 @DubboService 注解并注册为 BeanDefinition
+     * 2. 扫描 @DubboService 注解
+     *
+     * 由于 ProviderConfiguration 类配置了 {@link EnableDubbo}，启用注解 {@link DubboComponentScan}，该注解中引入了 {@link DubboComponentScanRegistrar}
+     * 其中注册了 BeanFactoryPostProcessor 即 {@link ServiceClassPostProcessor}
+     * @see DubboComponentScanRegistrar#registerServiceAnnotationBeanPostProcessor(java.util.Set, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     *
+     * 执行 BeanFactoryPostProcessor，扫描 @DubboService 注解的实现类，注册为 BeanDefinition
      * @see ServiceClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      * @see ServiceClassPostProcessor#registerServiceBeans(java.util.Set, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      * @see ServiceClassPostProcessor#findServiceBeanDefinitionHolders(org.springframework.context.annotation.ClassPathBeanDefinitionScanner, java.lang.String, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.springframework.beans.factory.support.BeanNameGenerator)
