@@ -64,6 +64,13 @@ import org.springframework.context.support.AbstractApplicationContext;
  * sc *Wrapper*
  * jad org.apache.dubbo.common.bytecode.Wrapper0
  *
+ *
+ * 服务发布流程：
+ * 1. 检测配置文件，解析为 ServiceConfig 等配置类，用于组装 URL
+ * 2. 本地发布或远程发布，通过 URL 构建 Invoker 代理，再转换为 Exporter
+ * 3. 注册服务到注册中心
+ *
+ *
  * @author Sumkor
  * @since 2020/12/14
  */
@@ -82,17 +89,8 @@ public class ServiceExportTest {
      * @see AbstractApplicationContext#refresh()
      * @see AbstractApplicationContext#invokeBeanFactoryPostProcessors(org.springframework.beans.factory.config.ConfigurableListableBeanFactory)
      *
-     * 1. 扫描 @DubboService 注解并注册为 BeanDefinition
-     * @see ServiceClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
-     * @see ServiceClassPostProcessor#registerServiceBeans(java.util.Set, org.springframework.beans.factory.support.BeanDefinitionRegistry)
-     * @see ServiceClassPostProcessor#findServiceBeanDefinitionHolders(org.springframework.context.annotation.ClassPathBeanDefinitionScanner, java.lang.String, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.springframework.beans.factory.support.BeanNameGenerator)
      *
-     * 将扫描到的 @DubboService 标注的类注册到 BeanDefinitionRegister，其中 beanName = ServiceBean:org.apache.dubbo.demo.DemoService，beanClass = {@link ServiceBean}
-     * @see ServiceClassPostProcessor#registerServiceBean(org.springframework.beans.factory.config.BeanDefinitionHolder, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.apache.dubbo.config.spring.context.annotation.DubboClassPathBeanDefinitionScanner)
-     * @see ServiceClassPostProcessor#buildServiceBeanDefinition(java.lang.annotation.Annotation, org.springframework.core.annotation.AnnotationAttributes, java.lang.Class, java.lang.String)
-     *
-     *
-     * 2. 解析配置文件 dubbo-provider.properties
+     * 1. 解析配置文件 dubbo-provider.properties
      *
      * 项目启动时，执行 new AnnotationConfigApplicationContext(ProviderConfiguration.class);
      * 该操作会把 beanName = application.ProviderConfiguration 注册到 BeanDefinition 之中
@@ -101,7 +99,7 @@ public class ServiceExportTest {
      * @see ConfigurationClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      * @see ConfigurationClassPostProcessor#processConfigBeanDefinitions(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
-     * 2.1 解析 beanName = application.ProviderConfiguration
+     * 1.1 解析 ProviderConfiguration 配置类， beanName = application.ProviderConfiguration
      * @see org.springframework.context.annotation.ConfigurationClassParser#parse(java.util.Set)
      * @see org.springframework.context.annotation.ConfigurationClassBeanDefinitionReader#loadBeanDefinitions(java.util.Set)
      *
@@ -110,7 +108,7 @@ public class ServiceExportTest {
      *
      * 默认会把 beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple 注册到 Spring 之中。
      *
-     * 2.2 解析 beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple
+     * 1.2 解析 beanName = dubboConfigConfiguration.Single、dubboConfigConfiguration.Multiple
      *
      * 回到 ConfigurationClassPostProcessor，由于 BeanDefinition 集合之中加了新的 beanName，继续进行遍历解析
      * @see ConfigurationClassPostProcessor#processConfigBeanDefinitions(org.springframework.beans.factory.support.BeanDefinitionRegistry)
@@ -126,6 +124,16 @@ public class ServiceExportTest {
      *
      * 最后真正地对配置文件进行读取！！！
      * @see ConfigurationBeanBindingRegistrar#registerConfigurationBeans(java.lang.String, java.lang.Class, boolean, boolean, boolean, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     *
+     *
+     * 2. 扫描 @DubboService 注解并注册为 BeanDefinition
+     * @see ServiceClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     * @see ServiceClassPostProcessor#registerServiceBeans(java.util.Set, org.springframework.beans.factory.support.BeanDefinitionRegistry)
+     * @see ServiceClassPostProcessor#findServiceBeanDefinitionHolders(org.springframework.context.annotation.ClassPathBeanDefinitionScanner, java.lang.String, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.springframework.beans.factory.support.BeanNameGenerator)
+     *
+     * 将扫描到的 @DubboService 标注的类注册到 BeanDefinitionRegister，其中 beanName = ServiceBean:org.apache.dubbo.demo.DemoService，beanClass = {@link ServiceBean}
+     * @see ServiceClassPostProcessor#registerServiceBean(org.springframework.beans.factory.config.BeanDefinitionHolder, org.springframework.beans.factory.support.BeanDefinitionRegistry, org.apache.dubbo.config.spring.context.annotation.DubboClassPathBeanDefinitionScanner)
+     * @see ServiceClassPostProcessor#buildServiceBeanDefinition(java.lang.annotation.Annotation, org.springframework.core.annotation.AnnotationAttributes, java.lang.Class, java.lang.String)
      *
      *
      * 3. 实例化 bean，其中 beanName = registryConfig、applicationConfig、protocolConfig、ServiceBean:org.apache.dubbo.demo.DemoService 等。
