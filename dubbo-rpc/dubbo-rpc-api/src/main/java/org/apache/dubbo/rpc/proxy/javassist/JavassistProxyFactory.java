@@ -31,12 +31,12 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
 
     /**
      * 使用 Javassist 动态生成代理并实例化
-     * 生成 Proxy 子类（Proxy 是抽象类）。并调用 Proxy 子类的 newInstance 方法创建 Proxy 实例
      */
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
-        return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
+        Proxy proxy = Proxy.getProxy(interfaces); // 生成代理类工厂
+        return (T) proxy.newInstance(new InvokerInvocationHandler(invoker)); // 创建 invoker 实例的代理
     }
 
     /**

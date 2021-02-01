@@ -11,6 +11,7 @@ import org.apache.dubbo.common.extension.ExtensionLoader;
 import org.apache.dubbo.config.AbstractConfig;
 import org.apache.dubbo.config.ServiceConfig;
 import org.apache.dubbo.config.bootstrap.DubboBootstrap;
+import org.apache.dubbo.config.context.ConfigManager;
 import org.apache.dubbo.config.spring.ServiceBean;
 import org.apache.dubbo.config.spring.beans.factory.annotation.ServiceClassPostProcessor;
 import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
@@ -39,6 +40,7 @@ import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocolServer;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.DefaultSingletonBeanRegistry;
 import org.springframework.context.annotation.ConfigurationClassPostProcessor;
 import org.springframework.context.event.SimpleApplicationEventMulticaster;
 import org.springframework.context.support.AbstractApplicationContext;
@@ -63,9 +65,9 @@ import org.springframework.context.support.AbstractApplicationContext;
  *
  *
  * 服务发布流程：
- * 1. 检测配置文件，解析为 ServiceConfig 等配置类，用于组装 URL
- * 2. 本地发布或远程发布，通过 URL 构建 Invoker 代理，再转换为 Exporter
- * 3. 注册服务到注册中心
+ * 1. 检测配置。解析配置文件，解析 @DubboService 注解为 ServiceConfig 配置类，用于组装 URL。
+ * 2. 通过 URL 构建 Invoker。实现对服务提供类的代理。
+ * 3. 将 Invoker 转换为 Exporter。本地发布直接创建 Exporter；远程发布创建 Exporter 之后，启动 Netty/Tomcat 服务器，注册服务到注册中心。
  *
  *
  * @author Sumkor
@@ -84,8 +86,6 @@ public class ServiceExportTest {
      *
      * Spring 容器启动
      * @see AbstractApplicationContext#refresh()
-     * @see AbstractApplicationContext#invokeBeanFactoryPostProcessors(org.springframework.beans.factory.config.ConfigurableListableBeanFactory)
-     *
      *
      * 1. 解析配置文件 dubbo-provider.properties
      *
@@ -93,6 +93,7 @@ public class ServiceExportTest {
      * 该操作会把 beanName = application.ProviderConfiguration 注册到 BeanDefinition 之中
      *
      * 配置类扫描入口
+     * @see AbstractApplicationContext#invokeBeanFactoryPostProcessors(org.springframework.beans.factory.config.ConfigurableListableBeanFactory)
      * @see ConfigurationClassPostProcessor#postProcessBeanDefinitionRegistry(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      * @see ConfigurationClassPostProcessor#processConfigBeanDefinitions(org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
@@ -186,8 +187,9 @@ public class ServiceExportTest {
      * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
      *     url = dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-api-provider&bind.ip=172.20.3.201&bind.port=20880&default=true&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=3500&release=&side=provider&timestamp=1608473481377
      *
-     *
-     *
+     */
+
+    /**
      * 3. 本地发布
      * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
      * @see ServiceConfig#exportLocal(org.apache.dubbo.common.URL)
@@ -228,14 +230,24 @@ public class ServiceExportTest {
      * 执行 Protocol#export
      * @see ProtocolFilterWrapper#export(org.apache.dubbo.rpc.Invoker)
      * @see ProtocolFilterWrapper#buildInvokerChain(org.apache.dubbo.rpc.Invoker, java.lang.String, java.lang.String)
+     *
+     * 在 ProtocolFilterWrapper 的 export 里面就会把 invoker 组装上各种 Filter：
+     * EchoFilter：回响测试主要用来检测服务是否正常（网络状态）
+     * ExecuteLimitFilter：接口调用限制，一旦当前执行的线程数量大于指定数量，就直接返回失败了
+     * ExceptionFilter：Dubbo 对于异常的处理
+     * https://www.jianshu.com/p/c5ebe3e08161
+     *
+     * 继续执行 执行 Protocol#export
      * @see ProtocolListenerWrapper#export(org.apache.dubbo.rpc.Invoker)
      * @see InjvmProtocol#export(org.apache.dubbo.rpc.Invoker)
      *
      * 最后得到 {@link org.apache.dubbo.rpc.protocol.injvm.InjvmExporter} 并包装在 {@link ListenerExporterWrapper} 之中返回，本地发布结束。
-     * 并将 key = org.apache.dubbo.demo.DemoService，value = InjvmExporter 存储在 {@link AbstractProtocol#exporterMap} 之中。
-     * 即维护了 org.apache.dubbo.demo.DemoService 与 invoker 的映射关系！
+     * 并将 key = "org.apache.dubbo.demo.DemoService"，value = InjvmExporter 存储在 {@link AbstractProtocol#exporterMap} 之中。
+     * 即维护了 "org.apache.dubbo.demo.DemoService" 与 invoker 的映射关系！
      *
-     *
+     */
+
+    /**
      * 4. 远程发布
      *
      * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
@@ -298,8 +310,8 @@ public class ServiceExportTest {
      * 把 invoker 包装成 DubboExporter
      *
      * exporterMap.put(key, exporter);
-     * 这里将 key = org.apache.dubbo.demo.DemoService:20880 和 value = DubboExporter 存储在 {@link AbstractProtocol#exporterMap} 之中。
-     * 即维护了 org.apache.dubbo.demo.DemoService:20880 与 invoker 的映射关系！
+     * 这里将 key = "org.apache.dubbo.demo.DemoService:20880" 和 value = DubboExporter 存储在 {@link AbstractProtocol#exporterMap} 之中。
+     * 即维护了 "org.apache.dubbo.demo.DemoService:20880" 与 invoker 的映射关系！
      *
      * 打开服务端端口，建立服务端 Server，返回 DubboProtocolServer
      * @see DubboProtocol#openServer(org.apache.dubbo.common.URL)
@@ -323,6 +335,11 @@ public class ServiceExportTest {
      * 启动 netty 服务
      * @see NettyServer#doOpen()
      *
+     * 关注到 Netty 的 pipeline 中，包含了编码器和解码器，用于对 Dubbo 协议的数据包进行解析。
+     * Dubbo 数据包结构分为消息头和消息体，消息头用于存储一些元信息，比如魔数（Magic），数据包类型（Request/Response），消息体长度（Data Length）等。消息体中用于存储具体的调用消息，比如方法名称，参数列表等。
+     * Netty 检测到有数据入站后，首先会通过解码器对数据进行解码，并将解码后的数据传递给下一个入站处理器的指定方法。
+     * 最后将请求传递给服务接口实现类。
+     * https://dubbo.apache.org/zh/docs/v2.7/dev/source/service-invoking-process/
      *
      * B. 重置服务
      * 当存在多个 @DubboService 时，第一个服务发布时已经创建 netty 服务，后面的服务发布时，需要进行重置
@@ -433,6 +450,8 @@ public class ServiceExportTest {
 
 
     /**
+     * 对动态生成代码进行打印
+     *
      * @see ExtensionLoader#createAdaptiveExtensionClass()
      *
      * 动态生成 Protocol$Adaptive 的代码如下：

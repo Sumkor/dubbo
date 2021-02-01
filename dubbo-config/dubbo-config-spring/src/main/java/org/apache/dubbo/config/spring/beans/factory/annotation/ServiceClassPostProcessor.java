@@ -131,7 +131,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         Set<String> resolvedPackagesToScan = resolvePackagesToScan(packagesToScan);
 
         if (!CollectionUtils.isEmpty(resolvedPackagesToScan)) {
-            registerServiceBeans(resolvedPackagesToScan, registry);
+            registerServiceBeans(resolvedPackagesToScan, registry); // 将 @DubboService 修饰的类注册为 ServiceBean
         } else {
             if (logger.isWarnEnabled()) {
                 logger.warn("packagesToScan is empty , ServiceBean registry will be ignored!");
@@ -157,7 +157,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
 
         // refactor @since 2.7.7
         serviceAnnotationTypes.forEach(annotationType -> {
-            scanner.addIncludeFilter(new AnnotationTypeFilter(annotationType)); // scanner添加对@DubboService注解的支持
+            scanner.addIncludeFilter(new AnnotationTypeFilter(annotationType)); // scanner 添加对 @DubboService 注解的支持
         });
 
         for (String packageToScan : packagesToScan) {
@@ -296,7 +296,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         String beanName = generateServiceBeanName(serviceAnnotationAttributes, interfaceClass);
 
         if (scanner.checkCandidate(beanName, serviceBeanDefinition)) { // check duplicated candidate bean
-            registry.registerBeanDefinition(beanName, serviceBeanDefinition); // 注册ServiceBean
+            registry.registerBeanDefinition(beanName, serviceBeanDefinition); // 注册 ServiceBean
 
             if (logger.isInfoEnabled()) {
                 logger.info("The BeanDefinition[" + serviceBeanDefinition +

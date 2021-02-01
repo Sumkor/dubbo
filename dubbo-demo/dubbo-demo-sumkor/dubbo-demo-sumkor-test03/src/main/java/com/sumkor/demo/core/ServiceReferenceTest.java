@@ -75,12 +75,21 @@ import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFact
  *
  * Invoker 是 Dubbo 的核心模型，代表一个可执行体。在服务提供方，Invoker 用于调用服务提供类。在服务消费方，Invoker 用于执行远程调用。
  *
+ *
+ * 服务引用流程：
+ * 1. 检测配置。解析配置文件，解析 @DubboReference 注解为 ReferenceConfig 配置类，用于组装 URL
+ * 2. 根据 URL 引用服务并创建 Invoker。本地引入创建的 Invoker 可以获取本地发布的 Invoker。远程引入则通过订阅注册中心上 provider 信息，创建 Netty/HttpClient 客户端，进而创建 Invoker。
+ * 3. 生成代理类，对 Invoker 进行代理。
+ *
+ *
  * @author Sumkor
  * @since 2020/12/23
  */
 public class ServiceReferenceTest {
 
     /**
+     * 1. Dubbo 与 Spring 整合
+     *
      * Spring 注解方式引用服务
      * dubbo-demo/dubbo-demo-annotation/dubbo-demo-annotation-provider/src/main/java/org/apache/dubbo/demo/provider/Application.java
      *
@@ -102,10 +111,10 @@ public class ServiceReferenceTest {
      * @see ReferenceBean#afterPropertiesSet()
      * @see ReferenceBean#getObject()
      *
-     * 1. 服务引用入口
+     * 2. 服务引用入口
      * @see ReferenceConfig#get()
      *
-     * 2. init 方法主要用于处理配置，以及调用 createProxy 生成代理类
+     * init 方法主要用于处理配置，以及调用 createProxy 生成代理类
      * @see ReferenceConfig#init()
      *
      * 实例化 ConsumerConfig 等，猜测各种 config 只是用于构造 url
@@ -132,8 +141,9 @@ public class ServiceReferenceTest {
 
     /**
      * ------------ 非泛化 ------------
-     *
-     *
+     */
+
+    /**
      * 3.1 本地服务引入
      *
      * @see ReferenceConfig#createProxy(java.util.Map)
@@ -161,8 +171,12 @@ public class ServiceReferenceTest {
      * 得到层层包装的 InjvmInvoker，最后再与过滤器一同组装，并返回
      * @see ProtocolFilterWrapper#buildInvokerChain(org.apache.dubbo.rpc.Invoker, java.lang.String, java.lang.String)
      *
-     *
+     */
+
+    /**
      * 3.2 远程服务引入
+     *
+     * @see ReferenceConfig#createProxy(java.util.Map)
      *
      * 3.2.1 构造 url 进行 SPI
      *
@@ -308,7 +322,7 @@ public class ServiceReferenceTest {
      * invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
      * 这里 serviceType = org.apache.dubbo.demo.DemoService 类
      *
-     * 先看结果，这里得到的 invoker，由 {@link RegistryDirectory#refreshInvoker(java.util.List)} 可知存储在各种位置：
+     * 先看结果，这里得到的 invoker 之后，根据 {@link RegistryDirectory#refreshInvoker(java.util.List)} 将其存储在各种位置：
      * 存储在 {@link RegistryDirectory#urlInvokerMap}，key 为 url，value 为 {@link DubboInvoker} 的包装类 {@link RegistryDirectory.InvokerDelegate}
      * 存储在 {@link RegistryDirectory#invokers}
      * 存储在 {@link RouterChain#invokers}
@@ -383,13 +397,16 @@ public class ServiceReferenceTest {
      * Invoker 创建完毕后，接下来要做的事情是为服务接口生成代理对象。有了代理对象，即可进行远程调用。
      *
      *
+     */
+
+    /**
+     * 4. 生成代理
      *
-     *
-     * 3.3 生成代理
+     * @see ReferenceConfig#createProxy(java.util.Map)
      *
      * PROXY_FACTORY.getProxy(invoker, ProtocolUtils.isGeneric(generic));
      *
-     * 3.3.1 通过 url 进行 SPI
+     * 4.1 通过 url 进行 SPI
      *
      * @see ProxyFactory$Adaptive#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
      *
@@ -401,39 +418,50 @@ public class ServiceReferenceTest {
      * ！！！得到包装类
      * StubProxyFactoryWrapper(JavassistProxyFactory)
      *
-     * 3.3.2 执行 proxyFactory#getProxy
+     * 4.2 执行 StubProxyFactoryWrapper#getProxy
      *
      * @see StubProxyFactoryWrapper#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
      *
      * @see AbstractProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
      * 这里是非泛化，一波操作之后，得到 interfaces 集合如下：
+     *
      * interfaces = [interface com.alibaba.dubbo.rpc.service.EchoService, interface org.apache.dubbo.rpc.service.Destroyable, interface org.apache.dubbo.demo.DemoService]
      *
-     * 3.3.3 生成 proxy 类并实例化
+     * 4.3 执行 JavassistProxyFactory#getProxy
      *
      * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
      * 这里入参 invoker 为 MockClusterInvoker 对象实例，interfaces 为上一步得到的接口类集合
+     *
+     * 4.3.1 Proxy.getProxy(interfaces);
      *
      * @see Proxy#getProxy(java.lang.ClassLoader, java.lang.Class[])
      *
      * 将入参 interfaces 集合处理为一下字符串
      * String key = com.alibaba.dubbo.rpc.service.EchoService;org.apache.dubbo.rpc.service.Destroyable;org.apache.dubbo.demo.DemoService;
      *
-     * 生成的代理类类名如下，代码见下方。
+     * 这里生成了两个代理类如下，代码见下方。
      * org.apache.dubbo.common.bytecode.Proxy0
+     * org.apache.dubbo.common.bytecode.proxy0
      *
-     * 将代理类实例化，并存入 cache 缓存：
+     * 将 Proxy0 实例化，并存入 cache 缓存：
      * proxy = Proxy0.class.newInstance()
      * cache.put(key, new WeakReference<Proxy>(proxy));
      *
-     * 3.3.3 执行 proxy 类实例的 newInstance 方法
+     * 4.3.2 通过 newInstance 传递 invocationHandler
      *
-     * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
-     * proxy.newInstance(new InvokerInvocationHandler(invoker));
+     * public class Proxy0
+     * extends Proxy
+     * implements ClassGenerator.DC {
+     *     public Object newInstance(InvocationHandler invocationHandler) {
+     *         return new proxy0(invocationHandler);
+     *     }
+     * }
      *
-     * 可见代理类只是对 InvokerInvocationHandler 对象包了一层，而该 Handler 又对 Invoker 包了一层，最终还是调用到 Invoker。
+     * Proxy0 类引入了 proxy0 类，并利用 invocationHandler 来实例化 proxy0。
+     * 已知 InvocationHandler 只是对 invoker 包了一层。这里相当于用 proxy0 来代理 invoker。
      *
-     * 3.3.4 得到 proxy 实例之后，如果是非泛化接口，进行下一步处理
+     *
+     * 4.4 得到 proxy 实例之后，如果是非泛化接口，进行下一步处理
      *
      * @see StubProxyFactoryWrapper#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
      *
@@ -494,10 +522,31 @@ public class ServiceReferenceTest {
      */
 
     /**
+     * 对动态生成代码进行打印
+     *
+     * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
      * @see Proxy#getProxy(java.lang.ClassLoader, java.lang.Class[])
      *
+     * 动态生成 org.apache.dubbo.common.bytecode.Proxy0 的代码如下，注意这个 Proxy0 是大写！
      *
-     * 非泛化 动态生成 org.apache.dubbo.common.bytecode.Proxy0 的代码如下：
+    package org.apache.dubbo.common.bytecode;
+
+    import java.lang.reflect.InvocationHandler;
+    import org.apache.dubbo.common.bytecode.ClassGenerator;
+    import org.apache.dubbo.common.bytecode.Proxy;
+    import org.apache.dubbo.common.bytecode.proxy0;
+
+    public class Proxy0
+    extends Proxy
+    implements ClassGenerator.DC {
+    public Object newInstance(InvocationHandler invocationHandler) {
+    return new proxy0(invocationHandler);
+    }
+    }
+
+     *
+     *
+     * 非泛化 动态生成 org.apache.dubbo.common.bytecode.proxy0 的代码如下，注意这个 proxy0 是小写：
      *
     package org.apache.dubbo.common.bytecode;
 
@@ -550,8 +599,7 @@ public class ServiceReferenceTest {
 
      *
      *
-     * 泛化 动态生成 org.apache.dubbo.common.bytecode.Proxy0 的代码如下：
-     *
+     * 泛化 动态生成 org.apache.dubbo.common.bytecode.proxy0 的代码如下：
      *
     package org.apache.dubbo.common.bytecode;
 
