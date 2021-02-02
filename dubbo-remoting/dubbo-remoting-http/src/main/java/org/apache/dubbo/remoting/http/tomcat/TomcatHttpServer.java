@@ -47,7 +47,7 @@ public class TomcatHttpServer extends AbstractHttpServer {
         super(url, handler);
 
         this.url = url;
-        DispatcherServlet.addHttpHandler(url.getPort(), handler); // 将包含 invoker 的 handler 存入 DispatcherServlet 之中
+        DispatcherServlet.addHttpHandler(url.getPort(), handler); // 将 InternalHandler 实例存入 DispatcherServlet 之中
         String baseDir = new File(System.getProperty("java.io.tmpdir")).getAbsolutePath();
         tomcat = new Tomcat();
 

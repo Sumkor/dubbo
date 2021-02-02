@@ -442,11 +442,25 @@ public class ServiceExportTest {
      * @see TomcatHttpBinder#bind(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.http.HttpHandler)
      * @see TomcatHttpServer#TomcatHttpServer(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.http.HttpHandler)
      *
-     * 将包含 invoker 的 handler 存入 DispatcherServlet 之中
-     * HTTP 服务器创建完成之后，将 key = "0.0.0.0:8888"，value = TomcatHttpServer 实例存入 {@link AbstractProtocol#serverMap}
+     * 1.3 HTTP 服务器创建完成之后
+     * @see HttpProtocol#doExport(java.lang.Object, java.lang.Class, org.apache.dubbo.common.URL)
      *
-     * 服务调用时，由 DispatcherServlet 接收处理请求
+     * 在 {@link AbstractProtocol#serverMap} 中存入
+     * key = "0.0.0.0:8888"，value = TomcatHttpServer
+     *
+     * 在 {@link HttpProtocol#skeletonMap} 中存入
+     * key = "/org.apache.dubbo.demo.DemoService"，value = JsonRpcServer
+     * key = "/org.apache.dubbo.demo.DemoService/generic"，value = JsonRpcServer
+     *
+     * 2. 服务调用时，由 DispatcherServlet 接收处理请求
      * @see DispatcherServlet#service(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+     * @see HttpProtocol.InternalHandler#handle(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
+     *
+     * 通过 POST 请求地址 http://127.0.0.1:8888/org.apache.dubbo.demo.DemoService
+     * 进而访问到包含 invoker 的 JsonRpcServer
+     *
+     * JsonRpcServer 是 JSON-RPC 协议的实现，该协议的数据传输格式为 JSON 格式。
+     * https://blog.csdn.net/csolo/article/details/53583905
      */
 
     /**
