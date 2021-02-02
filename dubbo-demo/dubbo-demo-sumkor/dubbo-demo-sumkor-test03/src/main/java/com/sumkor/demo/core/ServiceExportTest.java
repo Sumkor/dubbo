@@ -25,20 +25,28 @@ import org.apache.dubbo.registry.zookeeper.ZookeeperRegistry;
 import org.apache.dubbo.registry.zookeeper.ZookeeperRegistryFactory;
 import org.apache.dubbo.remoting.Transporters;
 import org.apache.dubbo.remoting.exchange.Exchangers;
+import org.apache.dubbo.remoting.exchange.support.ExchangeHandlerAdapter;
 import org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeServer;
 import org.apache.dubbo.remoting.exchange.support.header.HeaderExchanger;
+import org.apache.dubbo.remoting.http.servlet.DispatcherServlet;
+import org.apache.dubbo.remoting.http.tomcat.TomcatHttpBinder;
+import org.apache.dubbo.remoting.http.tomcat.TomcatHttpServer;
 import org.apache.dubbo.remoting.transport.AbstractServer;
 import org.apache.dubbo.remoting.transport.netty4.NettyServer;
 import org.apache.dubbo.remoting.transport.netty4.NettyTransporter;
 import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.listener.ListenerExporterWrapper;
 import org.apache.dubbo.rpc.protocol.AbstractProtocol;
+import org.apache.dubbo.rpc.protocol.AbstractProxyProtocol;
 import org.apache.dubbo.rpc.protocol.ProtocolFilterWrapper;
 import org.apache.dubbo.rpc.protocol.ProtocolListenerWrapper;
 import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocol;
 import org.apache.dubbo.rpc.protocol.dubbo.DubboProtocolServer;
+import org.apache.dubbo.rpc.protocol.http.HttpProtocol;
 import org.apache.dubbo.rpc.protocol.injvm.InjvmProtocol;
+import org.apache.dubbo.rpc.proxy.AbstractProxyFactory;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
+import org.apache.dubbo.rpc.proxy.wrapper.StubProxyFactoryWrapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.DefaultSingletonBeanRegistry;
 import org.springframework.context.annotation.ConfigurationClassPostProcessor;
@@ -338,8 +346,13 @@ public class ServiceExportTest {
      * 关注到 Netty 的 pipeline 中，包含了编码器和解码器，用于对 Dubbo 协议的数据包进行解析。
      * Dubbo 数据包结构分为消息头和消息体，消息头用于存储一些元信息，比如魔数（Magic），数据包类型（Request/Response），消息体长度（Data Length）等。消息体中用于存储具体的调用消息，比如方法名称，参数列表等。
      * Netty 检测到有数据入站后，首先会通过解码器对数据进行解码，并将解码后的数据传递给下一个入站处理器的指定方法。
-     * 最后将请求传递给服务接口实现类。
      * https://dubbo.apache.org/zh/docs/v2.7/dev/source/service-invoking-process/
+     *
+     * 服务调用时，Netty 将请求传递给服务接口实现类。
+     * @see DubboProtocol#requestHandler
+     * @see ExchangeHandlerAdapter#reply(org.apache.dubbo.remoting.exchange.ExchangeChannel, java.lang.Object)
+     * @see DubboProtocol#getInvoker(org.apache.dubbo.remoting.Channel, org.apache.dubbo.rpc.Invocation)
+     *
      *
      * B. 重置服务
      * 当存在多个 @DubboService 时，第一个服务发布时已经创建 netty 服务，后面的服务发布时，需要进行重置
@@ -387,6 +400,53 @@ public class ServiceExportTest {
      *     dubbo://172.20.3.201:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=172.20.3.201&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=20108&release=&server=netty4&side=provider&timestamp=1611643286192
      *     http://172.20.3.201:8888/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=172.20.3.201&bind.port=8888&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=20108&release=&server=tomcat&side=provider&timestamp=1611643422494
      *
+     */
+
+    /**
+     * Http协议发布
+     *
+     * 组装 URL
+     *     http://172.20.3.201:8888/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=172.20.3.201&bind.port=8888&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=24296&release=&server=tomcat&side=provider&timestamp=1612231367600
+     *
+     * 构建的 Invoker 并无特殊，只需关注生成 Exporter 部分。
+     *
+     * 1. 执行 Protocol#export
+     * @see ServiceConfig#doExportUrlsFor1Protocol(org.apache.dubbo.config.ProtocolConfig, java.util.List)
+     * @see RegistryProtocol#export(org.apache.dubbo.rpc.Invoker)
+     * @see RegistryProtocol#doLocalExport(org.apache.dubbo.rpc.Invoker, org.apache.dubbo.common.URL)
+     *
+     * 执行 HttpProtocol#export。由于 HttpProtocol 没有该方法，实际执行父类的 export 方法。
+     * @see AbstractProxyProtocol#export(org.apache.dubbo.rpc.Invoker)
+     *
+     * 1.1 proxyFactory#getProxy
+     *
+     * A. 执行 StubProxyFactoryWrapper#getProxy
+     *
+     * @see StubProxyFactoryWrapper#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
+     * @see AbstractProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, boolean)
+     * 得到集合
+     * interfaces = [interface org.apache.dubbo.demo.DemoService, interface com.alibaba.dubbo.rpc.service.EchoService, interface org.apache.dubbo.rpc.service.Destroyable, interface com.alibaba.dubbo.rpc.service.GenericService]
+     *
+     * B. 执行 JavassistProxyFactory#getProxy
+     *
+     * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
+     * 为 Invoker 生成代理
+     * 这部分逻辑，与 {@link ServiceReferenceTest} 生成代理部分是一样的。其目的是可以通过 Proxy 类的方法调用到 invoker
+     *
+     * 1.2 HttpProtocol#doExport
+     *
+     * @see HttpProtocol#doExport(java.lang.Object, java.lang.Class, org.apache.dubbo.common.URL)
+     * 得到 addr = "0.0.0.0:8888"
+     *
+     * 创建 HTTP 服务器
+     * @see TomcatHttpBinder#bind(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.http.HttpHandler)
+     * @see TomcatHttpServer#TomcatHttpServer(org.apache.dubbo.common.URL, org.apache.dubbo.remoting.http.HttpHandler)
+     *
+     * 将包含 invoker 的 handler 存入 DispatcherServlet 之中
+     * HTTP 服务器创建完成之后，将 key = "0.0.0.0:8888"，value = TomcatHttpServer 实例存入 {@link AbstractProtocol#serverMap}
+     *
+     * 服务调用时，由 DispatcherServlet 接收处理请求
+     * @see DispatcherServlet#service(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse)
      */
 
     /**

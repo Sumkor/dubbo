@@ -47,7 +47,7 @@ public class TomcatHttpServer extends AbstractHttpServer {
         super(url, handler);
 
         this.url = url;
-        DispatcherServlet.addHttpHandler(url.getPort(), handler);
+        DispatcherServlet.addHttpHandler(url.getPort(), handler); // 将包含 invoker 的 handler 存入 DispatcherServlet 之中
         String baseDir = new File(System.getProperty("java.io.tmpdir")).getAbsolutePath();
         tomcat = new Tomcat();
 
@@ -63,7 +63,7 @@ public class TomcatHttpServer extends AbstractHttpServer {
         tomcat.setPort(url.getPort());
 
         Context context = tomcat.addContext("/", baseDir);
-        Tomcat.addServlet(context, "dispatcher", new DispatcherServlet());
+        Tomcat.addServlet(context, "dispatcher", new DispatcherServlet()); // 由 DispatcherServlet 接收处理请求
         // Issue : https://github.com/apache/dubbo/issues/6418
         // addServletMapping method will be removed since Tomcat 9
         // context.addServletMapping("/*", "dispatcher");
