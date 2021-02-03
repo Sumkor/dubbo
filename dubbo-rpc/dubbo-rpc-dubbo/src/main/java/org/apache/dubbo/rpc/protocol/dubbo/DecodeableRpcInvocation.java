@@ -102,15 +102,15 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
 
         String dubboVersion = in.readUTF();
         request.setVersion(dubboVersion);
-        setAttachment(DUBBO_VERSION_KEY, dubboVersion);
+        setAttachment(DUBBO_VERSION_KEY, dubboVersion); // 通过反序列化得到 dubbo version，并保存到 attachments 变量中
 
         String path = in.readUTF();
         setAttachment(PATH_KEY, path);
         setAttachment(VERSION_KEY, in.readUTF());
 
-        setMethodName(in.readUTF());
+        setMethodName(in.readUTF()); // 通过反序列化得到调用方法名
 
-        String desc = in.readUTF();
+        String desc = in.readUTF(); // 通过反序列化得到参数类型字符串，比如 Ljava/lang/String;
         setParameterTypesDesc(desc);
 
         try {
@@ -140,7 +140,7 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
                 args = new Object[pts.length];
                 for (int i = 0; i < args.length; i++) {
                     try {
-                        args[i] = in.readObject(pts[i]);
+                        args[i] = in.readObject(pts[i]); // 解析运行时参数
                     } catch (Exception e) {
                         if (log.isWarnEnabled()) {
                             log.warn("Decode argument failed: " + e.getMessage(), e);
@@ -148,24 +148,24 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
                     }
                 }
             }
-            setParameterTypes(pts);
+            setParameterTypes(pts); // 设置参数类型数组
 
-            Map<String, Object> map = in.readAttachments();
+            Map<String, Object> map = in.readAttachments(); // 通过反序列化得到原 attachment 的内容
             if (map != null && map.size() > 0) {
                 Map<String, Object> attachment = getObjectAttachments();
                 if (attachment == null) {
                     attachment = new HashMap<>();
                 }
-                attachment.putAll(map);
+                attachment.putAll(map); // 将 map 与当前对象中的 attachment 集合进行融合
                 setObjectAttachments(attachment);
             }
 
-            //decode argument ,may be callback
+            //decode argument, may be callback // 对 callback 类型的参数进行处理
             for (int i = 0; i < args.length; i++) {
                 args[i] = decodeInvocationArgument(channel, this, pts, i, args[i]);
             }
 
-            setArguments(args);
+            setArguments(args); // 设置参数列表
             String targetServiceName = buildKey((String) getAttachment(PATH_KEY),
                     getAttachment(GROUP_KEY),
                     getAttachment(VERSION_KEY));

@@ -52,7 +52,7 @@ public class ChannelEventRunnable implements Runnable {
 
     @Override
     public void run() {
-        if (state == ChannelState.RECEIVED) {
+        if (state == ChannelState.RECEIVED) { // 检测通道状态，对于请求或响应消息，此时 state = RECEIVED
             try {
                 handler.received(channel, message);
             } catch (Exception e) {

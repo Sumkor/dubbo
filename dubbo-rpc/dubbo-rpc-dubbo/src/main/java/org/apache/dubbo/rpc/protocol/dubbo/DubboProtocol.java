@@ -117,7 +117,7 @@ public class DubboProtocol extends AbstractProtocol {
             }
 
             Invocation inv = (Invocation) message;
-            Invoker<?> invoker = getInvoker(channel, inv);
+            Invoker<?> invoker = getInvoker(channel, inv); // 获取 Invoker 实例
             // need to consider backward-compatibility if it's a callback
             if (Boolean.TRUE.toString().equals(inv.getObjectAttachments().get(IS_CALLBACK_SERVICE_INVOKE))) {
                 String methodsStr = invoker.getUrl().getParameters().get("methods");
@@ -142,7 +142,7 @@ public class DubboProtocol extends AbstractProtocol {
                 }
             }
             RpcContext.getContext().setRemoteAddress(channel.getRemoteAddress());
-            Result result = invoker.invoke(inv);
+            Result result = invoker.invoke(inv); // 通过 Invoker 调用具体的服务
             return result.thenApply(Function.identity());
         }
 
@@ -258,7 +258,7 @@ public class DubboProtocol extends AbstractProtocol {
                 (String) inv.getObjectAttachments().get(VERSION_KEY),
                 (String) inv.getObjectAttachments().get(GROUP_KEY)
         );
-        DubboExporter<?> exporter = (DubboExporter<?>) exporterMap.get(serviceKey);
+        DubboExporter<?> exporter = (DubboExporter<?>) exporterMap.get(serviceKey); // 已知服务发布过程，会在 exporterMap 中存储 serviceKey 与 Exporter 映射关系
 
         if (exporter == null) {
             throw new RemotingException(channel, "Not found exported service: " + serviceKey + " in " + exporterMap.keySet() + ", may be version or group mismatch " +

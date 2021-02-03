@@ -129,13 +129,13 @@ public class DecodeableRpcResult extends AppResponse implements Codec, Decodeabl
 
     private void handleValue(ObjectInput in) throws IOException {
         try {
-            Type[] returnTypes;
+            Type[] returnTypes; // 获取返回值类型
             if (invocation instanceof RpcInvocation) {
                 returnTypes = ((RpcInvocation) invocation).getReturnTypes();
             } else {
                 returnTypes = RpcUtils.getReturnTypes(invocation);
             }
-            Object value = null;
+            Object value = null; // 反序列化调用结果
             if (ArrayUtils.isEmpty(returnTypes)) {
                 // This almost never happens?
                 value = in.readObject();

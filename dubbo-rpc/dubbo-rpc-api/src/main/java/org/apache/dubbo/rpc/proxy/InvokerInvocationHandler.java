@@ -62,7 +62,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
         } else if (parameterTypes.length == 1 && "equals".equals(methodName)) {
             return invoker.equals(args[0]);
         }
-        RpcInvocation rpcInvocation = new RpcInvocation(method, invoker.getInterface().getName(), args);
+        RpcInvocation rpcInvocation = new RpcInvocation(method, invoker.getInterface().getName(), args); // 封装 RpcInvocation，作为 invoker 调用入参
         String serviceKey = invoker.getUrl().getServiceKey();
         rpcInvocation.setTargetServiceUniqueName(serviceKey);
       

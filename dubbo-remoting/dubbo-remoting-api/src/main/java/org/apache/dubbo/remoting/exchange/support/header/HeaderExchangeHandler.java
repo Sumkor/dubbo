@@ -77,7 +77,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
 
     void handleRequest(final ExchangeChannel channel, Request req) throws RemotingException {
         Response res = new Response(req.getId(), req.getVersion());
-        if (req.isBroken()) {
+        if (req.isBroken()) { // 检测请求是否合法，不合法则返回状态码为 BAD_REQUEST 的响应
             Object data = req.getData();
 
             String msg;
@@ -95,14 +95,14 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
             return;
         }
         // find handler by message class.
-        Object msg = req.getData();
+        Object msg = req.getData(); // 获取 data 字段值，也就是 RpcInvocation 对象
         try {
-            CompletionStage<Object> future = handler.reply(channel, msg);
+            CompletionStage<Object> future = handler.reply(channel, msg); // 调用服务接口
             future.whenComplete((appResult, t) -> {
                 try {
                     if (t == null) {
-                        res.setStatus(Response.OK);
-                        res.setResult(appResult);
+                        res.setStatus(Response.OK); // 设置 OK 状态码
+                        res.setResult(appResult); // 设置调用结果
                     } else {
                         res.setStatus(Response.SERVICE_ERROR);
                         res.setErrorMessage(StringUtils.toString(t));
@@ -113,7 +113,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                 }
             });
         } catch (Throwable e) {
-            res.setStatus(Response.SERVICE_ERROR);
+            res.setStatus(Response.SERVICE_ERROR); // 若调用过程出现异常，则设置 SERVICE_ERROR，表示服务端异常
             res.setErrorMessage(StringUtils.toString(e));
             channel.send(res);
         }
@@ -165,19 +165,19 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         final ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);
-        if (message instanceof Request) {
+        if (message instanceof Request) { // 处理请求对象，服务提供方会执行此处逻辑
             // handle request.
             Request request = (Request) message;
             if (request.isEvent()) {
-                handlerEvent(channel, request);
+                handlerEvent(channel, request); // 处理事件
             } else {
                 if (request.isTwoWay()) {
-                    handleRequest(exchangeChannel, request);
+                    handleRequest(exchangeChannel, request); // 双向通信
                 } else {
-                    handler.received(exchangeChannel, request.getData());
+                    handler.received(exchangeChannel, request.getData()); // 单向通信
                 }
             }
-        } else if (message instanceof Response) {
+        } else if (message instanceof Response) { // 处理响应对象，服务消费方会执行此处逻辑
             handleResponse(channel, (Response) message);
         } else if (message instanceof String) {
             if (isClientSide(channel)) {
