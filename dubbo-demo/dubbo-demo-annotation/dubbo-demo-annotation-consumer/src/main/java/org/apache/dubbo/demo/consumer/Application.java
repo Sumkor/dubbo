@@ -19,11 +19,12 @@ package org.apache.dubbo.demo.consumer;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.apache.dubbo.demo.DemoService;
 import org.apache.dubbo.demo.consumer.comp.DemoServiceComponent;
-
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
+
+import java.util.concurrent.CompletableFuture;
 
 public class Application {
     /**
@@ -36,6 +37,14 @@ public class Application {
         DemoService service = context.getBean("demoServiceComponent", DemoServiceComponent.class);
         String hello = service.sayHello("world");
         System.out.println("result :" + hello);
+
+        CompletableFuture<String> future = service.sayHelloAsync("world02");
+        future.whenComplete((result, error) -> {
+            if (error != null) {
+                error.printStackTrace();
+            }
+            System.out.println("resp = " + result);
+        });
     }
 
     @Configuration

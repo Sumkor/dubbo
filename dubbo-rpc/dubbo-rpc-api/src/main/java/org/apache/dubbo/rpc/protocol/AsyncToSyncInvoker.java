@@ -52,13 +52,13 @@ public class AsyncToSyncInvoker<T> implements Invoker<T> {
         Result asyncResult = invoker.invoke(invocation);
 
         try {
-            if (InvokeMode.SYNC == ((RpcInvocation) invocation).getInvokeMode()) {
+            if (InvokeMode.SYNC == ((RpcInvocation) invocation).getInvokeMode()) { // 同步模式，则由 Dubbo 框架来执行 future#get
                 /**
                  * NOTICE!
                  * must call {@link java.util.concurrent.CompletableFuture#get(long, TimeUnit)} because
                  * {@link java.util.concurrent.CompletableFuture#get()} was proved to have serious performance drop.
                  */
-                asyncResult.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+                asyncResult.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS); // 阻塞获取响应结果
             }
         } catch (InterruptedException e) {
             throw new RpcException("Interrupted unexpectedly while waiting for remote result to return!  method: " +

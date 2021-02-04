@@ -229,13 +229,13 @@ public class ExchangeCodec extends TelnetCodec {
 
         // encode request data.
         int savedWriteIndex = buffer.writerIndex(); // 获取 buffer 当前的写位置
-        buffer.writerIndex(savedWriteIndex + HEADER_LENGTH);
+        buffer.writerIndex(savedWriteIndex + HEADER_LENGTH); // 更新 writerIndex，为消息头预留 16 个字节的空间
         ChannelBufferOutputStream bos = new ChannelBufferOutputStream(buffer);
         ObjectOutput out = serialization.serialize(channel.getUrl(), bos); // 创建序列化器，比如 Hessian2ObjectOutput
         if (req.isEvent()) {
             encodeEventData(channel, out, req.getData()); // 对事件数据进行序列化操作
         } else {
-            encodeRequestData(channel, out, req.getData(), req.getVersion()); // 对请求数据进行序列化操作
+            encodeRequestData(channel, out, req.getData(), req.getVersion()); // 对请求数据进行序列化操作，将序列化后的消息体写入 buffer
         }
         out.flushBuffer();
         if (out instanceof Cleanable) {
@@ -245,11 +245,11 @@ public class ExchangeCodec extends TelnetCodec {
         bos.close();
         int len = bos.writtenBytes(); // 获取写入的字节数，也就是消息体长度
         checkPayload(channel, len);
-        Bytes.int2bytes(len, header, 12); // 将消息体长度写入到消息头中
+        Bytes.int2bytes(len, header, 12); // 将消息体长度写入到消息头数组中
 
         // write
         buffer.writerIndex(savedWriteIndex); // 将 buffer 指针移动到 savedWriteIndex，为写消息头做准备
-        buffer.writeBytes(header); // write header.
+        buffer.writeBytes(header); // write header. // 将消息头数据写入 buffer
         buffer.writerIndex(savedWriteIndex + HEADER_LENGTH + len); // 设置新的 writerIndex = 原写下标 + 消息头长度 + 消息体长度
     }
 

@@ -48,6 +48,7 @@ import org.apache.dubbo.rpc.proxy.AbstractProxyFactory;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
 import org.apache.dubbo.rpc.proxy.wrapper.StubProxyFactoryWrapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.DefaultSingletonBeanRegistry;
 import org.springframework.context.annotation.ConfigurationClassPostProcessor;
 import org.springframework.context.event.SimpleApplicationEventMulticaster;
@@ -135,7 +136,7 @@ public class ServiceExportTest {
      * 2. 扫描 @DubboService 注解
      *
      * 由于 ProviderConfiguration 类配置了 {@link EnableDubbo}，启用注解 {@link DubboComponentScan}，该注解中引入了 {@link DubboComponentScanRegistrar}
-     * 其中注册了 BeanFactoryPostProcessor 即 {@link ServiceClassPostProcessor}
+     * 其中注册了 BeanFactoryPostProcessor 即 {@link ServiceClassPostProcessor}，它实现了 {@link BeanDefinitionRegistryPostProcessor}，根父类是 BeanFactoryPostProcessor，用于往 Spring 容器注册 BeanDefinition。
      * @see DubboComponentScanRegistrar#registerServiceAnnotationBeanPostProcessor(java.util.Set, org.springframework.beans.factory.support.BeanDefinitionRegistry)
      *
      * 执行 BeanFactoryPostProcessor，扫描 @DubboService 注解的实现类，注册为 BeanDefinition
@@ -524,11 +525,13 @@ public class ServiceExportTest {
 
 
     /**
-     * 对动态生成代码进行打印
+     * ------ 对动态生成代码进行打印 ------
+     */
+
+    /**
+     * org.apache.dubbo.rpc.Protocol$Adaptive
      *
      * @see ExtensionLoader#createAdaptiveExtensionClass()
-     *
-     * 动态生成 Protocol$Adaptive 的代码如下：
      *
     package org.apache.dubbo.rpc;
     import org.apache.dubbo.common.extension.ExtensionLoader;
@@ -562,11 +565,13 @@ public class ServiceExportTest {
     return extension.refer(arg0, arg1);
     }
     }
+     *
+     */
 
     /**
-     * @see ExtensionLoader#createAdaptiveExtensionClass()
+     * org.apache.dubbo.rpc.ProxyFactory$Adaptive
      *
-     * 动态生成的 ProxyFactory$Adaptive 代码如下：
+     * @see ExtensionLoader#createAdaptiveExtensionClass()
      *
     package org.apache.dubbo.rpc;
     import org.apache.dubbo.common.extension.ExtensionLoader;
@@ -601,14 +606,14 @@ public class ServiceExportTest {
     return extension.getInvoker(arg0, arg1, arg2);
     }
     }
-
+     *
+     */
 
     /**
+     * org.apache.dubbo.common.bytecode.Wrapper0
+     *
      * @see JavassistProxyFactory#getInvoker(java.lang.Object, java.lang.Class, org.apache.dubbo.common.URL)
      *
-     * 动态生成的 Wrapper 代码如下：
-     *
-
     package org.apache.dubbo.common.bytecode;
 
     import com.sumkor.demo.DemoServiceImpl;

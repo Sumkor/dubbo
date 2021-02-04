@@ -1,13 +1,15 @@
 package com.sumkor.demo.test;
 
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
  * 使用 CompletableFuture
  * https://www.liaoxuefeng.com/wiki/1252599548343744/1306581182447650
- *
+ * <p>
  * 特点：异步回调、串行执行、并行执行
  *
  * @author Sumkor
@@ -15,9 +17,11 @@ import java.util.concurrent.CompletableFuture;
  */
 public class CompletableFutureTest {
 
+    private static final Logger logger = LoggerFactory.getLogger(CompletableFutureTest.class);
+
     /**
      * 异步回调机制，优点：
-     *
+     * <p>
      * 异步任务结束时，会自动回调某个对象的方法；
      * 异步任务出错时，会自动回调某个对象的方法；
      * 主线程设置好回调后，不再关心异步任务的执行。
@@ -148,5 +152,54 @@ public class CompletableFutureTest {
         return "601857";
     }
 
+    /**
+     * 两个线程共享同一个 CompletableFuture 对象，
+     * 线程一调用 CompletableFuture.get，一直阻塞着，
+     * 后面线程二调用了 CompletableFuture.complete(Response)，
+     * 此时线程一就能拿到 Response 对象。
+     * <p>
+     * 实际上，dubbo 中的 IO 线程接收到响应的数据包之后，派发给线程池解码，
+     * 线程池解码完成后，通过 CompletableFuture.complete 唤醒了一直阻塞着等待响应结果的用户线程。
+     */
+    @Test
+    public void getAndSet() {
+        CompletableFuture<String> completableFuture = new CompletableFuture();
 
+        Thread getThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    logger.info("获取completableFuture结果开始");
+                    String result = completableFuture.get();
+                    logger.info("获取completableFuture结果结束#{}", result);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        Thread setThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    logger.info("设置completableFuture结果开始");
+                    Thread.sleep(2000L);
+                    completableFuture.complete("hahah");
+                    logger.info("设置completableFuture结果结束");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        try {
+            getThread.start();
+            setThread.start();
+            // thread.join的含义是当前线程需要等待指定线程终止之后才从thread.join返回。简单来说，就是线程没有执行完之前，会一直阻塞在join方法处。
+            getThread.join();
+            logger.info("主线程执行结束");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
 }

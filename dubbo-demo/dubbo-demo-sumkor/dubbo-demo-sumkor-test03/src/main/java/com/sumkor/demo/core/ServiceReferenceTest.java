@@ -48,6 +48,7 @@ import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
 import org.apache.dubbo.rpc.proxy.javassist.JavassistProxyFactory;
 import org.apache.dubbo.rpc.proxy.wrapper.StubProxyFactoryWrapper;
 import org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor;
+import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessorAdapter;
 import org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory;
 
 /**
@@ -101,7 +102,8 @@ public class ServiceReferenceTest {
      * @see AbstractAnnotationBeanPostProcessor#postProcessPropertyValues(org.springframework.beans.PropertyValues, java.beans.PropertyDescriptor[], java.lang.Object, java.lang.String)
      * @see AbstractAnnotationBeanPostProcessor#getInjectedObject(org.springframework.core.annotation.AnnotationAttributes, java.lang.Object, java.lang.String, java.lang.Class, org.springframework.beans.factory.annotation.InjectionMetadata.InjectedElement)
      *
-     * 进入 Dubbo 与 Spring 框架整合的位置，这里创建 ReferenceBean，用于 @DubboReference 注解的属性注入。类似 {@link AutowiredAnnotationBeanPostProcessor} 用于处理 @Autowired 注解
+     * 进入 Dubbo 与 Spring 框架整合的位置，这里创建 ReferenceBean，用于 @DubboReference 注解的属性注入。
+     * 类似 {@link AutowiredAnnotationBeanPostProcessor} 用于处理 @Autowired 注解，它们均继承了 {@link InstantiationAwareBeanPostProcessorAdapter}，根父类是 BeanPostProcessor
      * @see ReferenceAnnotationBeanPostProcessor#doGetInjectedBean(org.springframework.core.annotation.AnnotationAttributes, java.lang.Object, java.lang.String, java.lang.Class, org.springframework.beans.factory.annotation.InjectionMetadata.InjectedElement)
      *
      * 一步一步调试进去
@@ -522,7 +524,11 @@ public class ServiceReferenceTest {
      */
 
     /**
-     * 对动态生成代码进行打印
+     * ------ 对动态生成代码进行打印 ------
+     */
+
+    /**
+     * org.apache.dubbo.common.bytecode.Proxy0
      *
      * @see JavassistProxyFactory#getProxy(org.apache.dubbo.rpc.Invoker, java.lang.Class[])
      * @see Proxy#getProxy(java.lang.ClassLoader, java.lang.Class[])
@@ -544,9 +550,12 @@ public class ServiceReferenceTest {
     }
     }
 
+     */
+
+    /**
+     * 非泛化 org.apache.dubbo.common.bytecode.proxy0
      *
-     *
-     * 非泛化 动态生成 org.apache.dubbo.common.bytecode.proxy0 的代码如下，注意这个 proxy0 是小写：
+     * 代码如下，注意这个 proxy0 是小写：
      *
     package org.apache.dubbo.common.bytecode;
 
@@ -597,9 +606,12 @@ public class ServiceReferenceTest {
     }
     }
 
+     */
+
+    /**
+     * 泛化 org.apache.dubbo.common.bytecode.proxy0
      *
-     *
-     * 泛化 动态生成 org.apache.dubbo.common.bytecode.proxy0 的代码如下：
+     * 代码如下：
      *
     package org.apache.dubbo.common.bytecode;
 

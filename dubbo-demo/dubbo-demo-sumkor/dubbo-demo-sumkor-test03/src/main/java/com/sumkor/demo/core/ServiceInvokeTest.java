@@ -5,6 +5,7 @@ import org.apache.dubbo.monitor.support.MonitorFilter;
 import org.apache.dubbo.registry.integration.RegistryProtocol;
 import org.apache.dubbo.remoting.Dispatcher;
 import org.apache.dubbo.remoting.exchange.codec.ExchangeCodec;
+import org.apache.dubbo.remoting.exchange.support.DefaultFuture;
 import org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeClient;
 import org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeHandler;
 import org.apache.dubbo.remoting.telnet.support.TelnetHandlerAdapter;
@@ -47,7 +48,7 @@ import java.util.concurrent.CompletableFuture;
  * Server 在收到请求后，首先要做的事情是对数据包进行解码。
  * 然后将解码后的请求发送至分发器 Dispatcher，再由分发器将请求派发到指定的线程池上，最后由线程池调用具体的服务。
  *
- * 服务调用方式：
+ * 服务调用方式（2.6.x）：
  * Dubbo 支持同步和异步两种调用方式，其中异步调用还可细分为“有返回值”的异步调用和“无返回值”的异步调用。
  * 所谓“无返回值”异步调用是指服务消费方只管调用，但不关心调用结果，此时 Dubbo 会直接返回一个空的 RpcResult。
  * 若要使用异步特性，需要服务消费方手动进行配置。
@@ -79,7 +80,7 @@ public class ServiceInvokeTest {
      *
      * 注意这里创建了 RpcInvocation 作为 Invoker#invoke 入参。
      *
-     * 进入集群容错的处理逻辑
+     * 2.1 进入集群容错的处理逻辑
      * @see MockClusterInvoker#invoke(org.apache.dubbo.rpc.Invocation)
      * @see AbstractCluster.InterceptorInvokerNode#invoke(org.apache.dubbo.rpc.Invocation)
      * @see AbstractClusterInvoker#invoke(org.apache.dubbo.rpc.Invocation)
@@ -90,14 +91,14 @@ public class ServiceInvokeTest {
      * 执行 RegistryDirectory.InvokerDelegate#invoke
      * @see InvokerWrapper#invoke(org.apache.dubbo.rpc.Invocation)
      *
-     * 执行过滤器链开始
+     * 2.2 执行过滤器链
      * 执行 ProtocolFilterWrapper#invoke
      * @see Invoker#invoke(org.apache.dubbo.rpc.Invocation)
      * @see ConsumerContextFilter#invoke(org.apache.dubbo.rpc.Invoker, org.apache.dubbo.rpc.Invocation)
      * @see FutureFilter#invoke(org.apache.dubbo.rpc.Invoker, org.apache.dubbo.rpc.Invocation)
      * @see MonitorFilter#invoke(org.apache.dubbo.rpc.Invoker, org.apache.dubbo.rpc.Invocation)
-     * 执行过滤器链结束
      *
+     * 2.3 后续执行
      * @see ListenerInvokerWrapper#invoke(org.apache.dubbo.rpc.Invocation)
      * @see AsyncToSyncInvoker#invoke(org.apache.dubbo.rpc.Invocation)
      * @see AbstractInvoker#invoke(org.apache.dubbo.rpc.Invocation)
@@ -109,6 +110,7 @@ public class ServiceInvokeTest {
      *
      * Dubbo 实现同步和异步调用比较关键的一点就在于由谁调用 {@link CompletableFuture#get()} 方法。
      * 同步调用模式下，由框架自身调用该方法。异步调用模式下，则由用户调用该方法。
+     * @see AsyncToSyncInvoker#invoke(org.apache.dubbo.rpc.Invocation)
      *
      * 推荐获取响应结果的方式：
      * Start from 2.7.3, you don't have to get Future from RpcContext, we recommend using Result directly:
@@ -132,10 +134,13 @@ public class ServiceInvokeTest {
      * HeaderExchangeClient 封装了一些关于心跳检测的逻辑
      * @see HeaderExchangeClient#request(java.lang.Object, int, java.util.concurrent.ExecutorService)
      *
-     * 通过 Exchange 层为框架引入 Request 和 Response 语义
+     * 通过 Exchange 层为框架引入 Request 语义（服务消费方）
      * @see org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeChannel#request(java.lang.Object, int, java.util.concurrent.ExecutorService)
      *
-     * 将请求数据送至 NettyChannel
+     * 这里将请求数据 RpcInvocation 封装在请求对象 Request，并创建 CompletableFuture 用于接收响应结果。
+     * 在 {@link DefaultFuture#FUTURES} 之中存储请求 id 和 CompletableFuture 实例的映射关系。
+     *
+     * 接着将请求数据送至 NettyChannel
      * NettyClient 中并未实现 send 方法，该方法继承自父类 AbstractPeer
      *
      * @see AbstractPeer#send(java.lang.Object)
@@ -184,6 +189,8 @@ public class ServiceInvokeTest {
      * 最后再将消息头字节数组 header 写入到 ChannelBuffer 中，整个编码过程就结束了。
      * @see ExchangeCodec#encodeRequest(org.apache.dubbo.remoting.Channel, org.apache.dubbo.remoting.buffer.ChannelBuffer, org.apache.dubbo.remoting.exchange.Request)
      *
+     * 注意写入过程，先给消息头预留位置，从预留位置之后写入序列化后的消息体，获取消息体的长度之后，再从预留位置的起始位写入消息头信息。
+     *
      * Request 对象的 data 字段序列化过程：
      * @see DubboCodec#encodeRequestData(org.apache.dubbo.remoting.Channel, org.apache.dubbo.common.serialize.ObjectOutput, java.lang.Object, java.lang.String)
      */
@@ -204,7 +211,7 @@ public class ServiceInvokeTest {
      *
      * 继续看解码逻辑，ExchangeCodec 中实现了 decodeBody 方法，但因其子类 DubboCodec 覆写了该方法，实际执行：
      * @see DubboCodec#decodeBody(org.apache.dubbo.remoting.Channel, java.io.InputStream, byte[])
-     * 如上，decodeBody 对部分字段进行了解码，并将解码得到的字段封装到 Request 中。
+     * 如上，decodeBody 对部分字段进行了解码，并将解码得到的字段封装到 Request 中（服务提供方）。
      *
      * 从数据包中解析：调用方法名、调用参数等
      * @see DecodeableRpcInvocation#decode()
@@ -260,16 +267,15 @@ public class ServiceInvokeTest {
      * 如上，请求对象会被封装 ChannelEventRunnable 中，接下来我们以 ChannelEventRunnable 为起点向下探索。
      *
      *
-     * 7.3 调用服务
+     * 7.3 调用服务，发送响应结果
      *
      * @see ChannelEventRunnable#run()
      * ChannelEventRunnable 仅是一个中转站，它的 run 方法中并不包含具体的调用逻辑，仅用于将参数传给其他 ChannelHandler 对象进行处理。
      * 该对象类型为 DecodeHandler。
      *
      * @see DecodeHandler#received(org.apache.dubbo.remoting.Channel, java.lang.Object)
-     * DecodeHandler 主要是包含了一些解码逻辑。
-     * 上一节分析请求解码 {@link DubboCodec#decodeBody} 可知，请求解码可在 IO 线程上执行，也可在线程池中执行，这个取决于运行时配置。
      * DecodeHandler 存在的意义就是保证请求或响应对象可在线程池中被解码。
+     * 上一节分析请求解码 {@link DubboCodec#decodeBody} 可知，请求解码可在 IO 线程上执行，也可在线程池中执行，这个取决于运行时配置。
      * 解码完毕后，完全解码后的 Request 对象会继续向后传递，下一站是 HeaderExchangeHandler。
      *
      * @see HeaderExchangeHandler#received(org.apache.dubbo.remoting.Channel, java.lang.Object)
@@ -278,7 +284,7 @@ public class ServiceInvokeTest {
      * 对于双向通信，HeaderExchangeHandler 首先向后进行调用，得到调用结果。然后将调用结果封装到 Response 对象中，最后再将该对象返回给服务消费方。
      * 如果请求不合法，或者调用失败，则将错误信息封装到 Response 对象中，并返回给服务消费方。
      *
-     * 下面分析定义在 DubboProtocol 类中的匿名类。
+     * 下面分析定义在 DubboProtocol 类中的匿名类，它对服务实现类进行真正地调用。
      *
      * @see DubboProtocol#requestHandler
      *
@@ -330,7 +336,9 @@ public class ServiceInvokeTest {
      *
      * 9.1 响应数据解码
      *
-     * 响应数据解码逻辑主要的逻辑封装在 DubboCodec 中
+     * 响应数据解码逻辑主要的逻辑封装在 DubboCodec 中，解码后的数据存储在 Response 对象中。
+     * @see ExchangeCodec#decode(org.apache.dubbo.remoting.Channel, org.apache.dubbo.remoting.buffer.ChannelBuffer)
+     * @see ExchangeCodec#decode(org.apache.dubbo.remoting.Channel, org.apache.dubbo.remoting.buffer.ChannelBuffer, int, byte[])
      * @see DubboCodec#decodeBody(org.apache.dubbo.remoting.Channel, java.io.InputStream, byte[])
      *
      * 调用结果的反序列化过程
@@ -339,11 +347,43 @@ public class ServiceInvokeTest {
      *
      * 9.2 将调用结果传递给用户线程
      *
-     * 上一节解码后的数据存储在 Response 对象中。
-     * @see DubboCodec#decodeBody(org.apache.dubbo.remoting.Channel, java.io.InputStream, byte[])
+     * 响应数据解码完成后，Dubbo 会将响应对象 Response 派发到线程池上。
+     * 要注意的是，线程池中的线程并非用户的调用线程，所以要想办法将响应对象从线程池线程传递到用户线程上。
+     * @see HeaderExchangeHandler#received(org.apache.dubbo.remoting.Channel, java.lang.Object)
+     * @see HeaderExchangeHandler#handleResponse(org.apache.dubbo.remoting.Channel, org.apache.dubbo.remoting.exchange.Response)
      *
-     * 响应数据解码完成后，Dubbo 会将响应对象派发到线程池上。要注意的是，线程池中的线程并非用户的调用线程，所以要想办法将响应对象从线程池线程传递到用户线程上。
+     * 根据请求 id 从 {@link DefaultFuture#FUTURES} 之中获取 DefaultFuture 对象。
+     * @see DefaultFuture#received(org.apache.dubbo.remoting.Channel, org.apache.dubbo.remoting.exchange.Response, boolean)
+     *
+     * 将响应对象保存到相应的 DefaultFuture 实例中
+     * @see DefaultFuture#doReceived(org.apache.dubbo.remoting.exchange.Response)
+     *
+     * 随后用户线程即可从 DefaultFuture 实例中获取到相应结果。
+     * @see AsyncToSyncInvoker#invoke(org.apache.dubbo.rpc.Invocation)
      *
      *
+     * 补充：
+     * 官方文档对 {@link DefaultFuture#FUTURES} 的说明：
+     * https://dubbo.apache.org/zh/docs/v2.7/dev/source/service-invoking-process/#25-%E6%9C%8D%E5%8A%A1%E6%B6%88%E8%B4%B9%E6%96%B9%E6%8E%A5%E6%94%B6%E8%B0%83%E7%94%A8%E7%BB%93%E6%9E%9C
+     * 如何将每个响应对象传递给相应的 DefaultFuture 对象，且不出错。
+     * 答案是通过调用编号。
+     * DefaultFuture 被创建时，会要求传入一个 Request 对象。
+     * 此时 DefaultFuture 可从 Request 对象中获取调用编号，并将 <调用编号, DefaultFuture 对象> 映射关系存入到静态 Map 中，即 FUTURES。
+     * 线程池中的线程在收到 Response 对象后，会根据 Response 对象中的调用编号到 FUTURES 集合中取出相应的 DefaultFuture 对象，然后再将 Response 对象设置到 DefaultFuture 对象中。
+     * 最后再唤醒用户线程，这样用户线程即可从 DefaultFuture 对象中获取调用结果了。
+     *
+     * 注意，在 dubbo 2.7.8 之中，并没有手动唤醒用户线程的逻辑。
+     * 而是通过执行 CompletableFuture#complete 方法，可以直接唤醒一直阻塞在 CompletableFuture#get 方法上的用户线程，得到执行结果。
+     */
+
+    /**
+     * 服务调用过程总结
+     *
+     *                           服务消费方                 服务提供方
+     *      Request ---编码--> NettyClient =====请求=====> NettyServer ---解码--> Request
+     *     Response <--解码--- NettyClient <====响应====== NettyServer <--编码--- Response
+     *
+     * 按照通信顺序，通信过程包括服务消费方发送请求，服务提供方接收请求，服务提供方返回响应数据，服务消费方接收响应数据等过程。
+     * 服务消费方在发起调用时返回 CompletableFuture 对象，在接收到响应时设置 CompletableFuture#complete，由此实现同步调用，异步获取返回。
      */
 }

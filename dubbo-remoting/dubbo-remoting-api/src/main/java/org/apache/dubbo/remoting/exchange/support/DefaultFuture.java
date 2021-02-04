@@ -165,7 +165,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
 
     public static void received(Channel channel, Response response, boolean timeout) {
         try {
-            DefaultFuture future = FUTURES.remove(response.getId());
+            DefaultFuture future = FUTURES.remove(response.getId()); // 根据调用编号从集合中查找指定的 DefaultFuture 对象
             if (future != null) {
                 Timeout t = future.timeoutCheckTask;
                 if (!timeout) {
@@ -205,7 +205,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
             throw new IllegalStateException("response cannot be null");
         }
         if (res.getStatus() == Response.OK) {
-            this.complete(res.getResult());
+            this.complete(res.getResult()); // 传递响应对象，设置 future#get 的返回值
         } else if (res.getStatus() == Response.CLIENT_TIMEOUT || res.getStatus() == Response.SERVER_TIMEOUT) {
             this.completeExceptionally(new TimeoutException(res.getStatus() == Response.SERVER_TIMEOUT, channel, res.getErrorMessage()));
         } else {

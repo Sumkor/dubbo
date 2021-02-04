@@ -68,7 +68,7 @@ public class DubboCodec extends ExchangeCodec {
         long id = Bytes.bytes2long(header, 4);
         if ((flag & FLAG_REQUEST) == 0) {
             // decode response. // 对响应结果进行解码，当服务消费者接收到响应时执行。
-            Response res = new Response(id);
+            Response res = new Response(id); // 创建响应对象
             if ((flag & FLAG_EVENT) != 0) {
                 res.setEvent(true);
             }
@@ -109,7 +109,7 @@ public class DubboCodec extends ExchangeCodec {
             return res;
         } else {
             // decode request. // 对请求进行解码，当服务提供者接收到请求时执行。
-            Request req = new Request(id);
+            Request req = new Request(id); // 创建请求对象
             req.setVersion(Version.getProtocolVersion());
             req.setTwoWay((flag & FLAG_TWOWAY) != 0);
             if ((flag & FLAG_EVENT) != 0) {
