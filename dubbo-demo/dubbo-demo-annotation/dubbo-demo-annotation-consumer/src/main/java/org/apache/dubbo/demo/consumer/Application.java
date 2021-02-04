@@ -24,8 +24,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
-import java.util.concurrent.CompletableFuture;
-
 public class Application {
     /**
      * In order to make sure multicast registry works, need to specify '-Djava.net.preferIPv4Stack=true' before
@@ -38,13 +36,13 @@ public class Application {
         String hello = service.sayHello("world");
         System.out.println("result :" + hello);
 
-        CompletableFuture<String> future = service.sayHelloAsync("world02");
-        future.whenComplete((result, error) -> {
-            if (error != null) {
-                error.printStackTrace();
-            }
-            System.out.println("resp = " + result);
-        });
+//        CompletableFuture<String> future = service.sayHelloAsync("world02");
+//        future.whenComplete((result, error) -> {
+//            if (error != null) {
+//                error.printStackTrace();
+//            }
+//            System.out.println("result :" + result);
+//        });
     }
 
     @Configuration
