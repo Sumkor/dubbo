@@ -90,7 +90,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         if (clients.length == 1) {
             currentClient = clients[0];
         } else {
-            currentClient = clients[index.getAndIncrement() % clients.length];
+            currentClient = clients[index.getAndIncrement() % clients.length]; // clients 数组轮询
         }
         try {
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation); // 是否单向通信
