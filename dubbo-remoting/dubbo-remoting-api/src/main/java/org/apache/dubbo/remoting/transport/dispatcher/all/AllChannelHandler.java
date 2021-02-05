@@ -60,7 +60,7 @@ public class AllChannelHandler extends WrappedChannelHandler {
     /** 处理请求和响应消息，这里的 message 变量类型可能是 Request，也可能是 Response */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
-        ExecutorService executor = getPreferredExecutorService(message);
+        ExecutorService executor = getPreferredExecutorService(message); // 接收到响应时，根据请求id从 DefaultFuture 实例中获取线程池。该线程池是在发起请求的时候创建并设置进去的，见 DubboInvoker#doInvoke、HeaderExchangeChannel#request
         try {
             executor.execute(new ChannelEventRunnable(channel, handler, ChannelState.RECEIVED, message)); // 将请求和响应消息派发到线程池中处理
         } catch (Throwable t) {

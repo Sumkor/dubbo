@@ -18,7 +18,6 @@ import org.apache.dubbo.remoting.transport.dispatcher.all.AllDispatcher;
 import org.apache.dubbo.remoting.transport.netty4.NettyClient;
 import org.apache.dubbo.remoting.transport.netty4.NettyServer;
 import org.apache.dubbo.rpc.AsyncRpcResult;
-import org.apache.dubbo.rpc.FutureContext;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.cluster.support.AbstractClusterInvoker;
 import org.apache.dubbo.rpc.cluster.support.FailoverClusterInvoker;
@@ -109,21 +108,8 @@ public class ServiceInvokeTest {
      * 双向请求，返回 {@link CompletableFuture} 对象，再包装在 {@link AsyncRpcResult} 对象中返回。
      *
      * Dubbo 实现同步和异步调用比较关键的一点就在于由谁调用 {@link CompletableFuture#get()} 方法。
-     * 同步调用模式下，由框架自身调用该方法。异步调用模式下，则由用户调用该方法。
-     * @see AsyncToSyncInvoker#invoke(org.apache.dubbo.rpc.Invocation)
+     * 同步调用模式下，由框架自身调用该方法，见 {@link AsyncToSyncInvoker}。异步调用模式下，则由用户调用该方法。
      *
-     * 推荐获取响应结果的方式：
-     * Start from 2.7.3, you don't have to get Future from RpcContext, we recommend using Result directly:
-     * <pre>{@code
-     *      public final class TracingFilter implements Filter {
-     *          public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
-     *              Result result = invoker.invoke(invocation);
-     *              result.getResponseFuture().whenComplete(new FinishSpanCallback(span));
-     *              ......
-     *          }
-     *      }
-     * }</pre>
-     * @see FutureContext#setCompatibleFuture(java.util.concurrent.CompletableFuture)
      *
      *
      * 4. Netty Client 发送请求
@@ -384,6 +370,14 @@ public class ServiceInvokeTest {
      *     Response <--解码--- NettyClient <====响应====== NettyServer <--编码--- Response
      *
      * 按照通信顺序，通信过程包括服务消费方发送请求，服务提供方接收请求，服务提供方返回响应数据，服务消费方接收响应数据等过程。
-     * 服务消费方在发起调用时返回 CompletableFuture 对象，在接收到响应时设置 CompletableFuture#complete，由此实现同步调用，异步获取返回。
+     * 不管是【服务消费方还是服务提供方】，发送请求的过程都是同步的，接收请求的时候才做了线程派发。
+     *
+     * 【服务消费方】
+     * 在发起调用时创建 CompletableFuture 对象并立即返回，在接收到响应时设置 CompletableFuture#complete。由此实现同步调用，异步获取返回。
+     * 已知服务消费方在接收到响应时，执行了线程派发。这里的线程池的创建和使用过程如下：
+     * 创建线程池 {@link DubboInvoker#doInvoke(org.apache.dubbo.rpc.Invocation)}
+     * 设置线程池 {@link org.apache.dubbo.remoting.exchange.support.header.HeaderExchangeChannel#request(java.lang.Object, int, java.util.concurrent.ExecutorService)}
+     * 取出线程池 {@link AllChannelHandler#received(org.apache.dubbo.remoting.Channel, java.lang.Object)}
+     *
      */
 }

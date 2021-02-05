@@ -100,7 +100,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 currentClient.send(inv, isSent); // 发送请求，无返回值
                 return AsyncRpcResult.newDefaultAsyncResult(invocation); // 返回空结果
             } else {
-                ExecutorService executor = getCallbackExecutor(getUrl(), inv);
+                ExecutorService executor = getCallbackExecutor(getUrl(), inv); // 根据 URL 创建线程池。后续等到接收到响应的时候，把处理响应的逻辑放到该线程池里执行，见 AllChannelHandler#received
                 CompletableFuture<AppResponse> appResponseFuture =
                         currentClient.request(inv, timeout, executor).thenApply(obj -> (AppResponse) obj); // 发送请求，有返回值
                 // save for 2.6.x compatibility, for example, TraceFilter in Zipkin uses com.alibaba.xxx.FutureAdapter
