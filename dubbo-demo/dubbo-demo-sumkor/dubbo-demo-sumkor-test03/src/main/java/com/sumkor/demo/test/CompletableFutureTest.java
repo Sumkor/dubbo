@@ -163,7 +163,7 @@ public class CompletableFutureTest {
      */
     @Test
     public void getAndSet() {
-        CompletableFuture<String> completableFuture = new CompletableFuture();
+        CompletableFuture<String> completableFuture = new CompletableFuture<>();
 
         Thread getThread = new Thread(new Runnable() {
             @Override

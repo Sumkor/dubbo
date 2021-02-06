@@ -3,6 +3,11 @@ package com.sumkor.demo.cluster;
 import org.apache.dubbo.rpc.RpcStatus;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
 import org.apache.dubbo.rpc.cluster.loadbalance.*;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 负载均衡
@@ -78,9 +83,29 @@ public class ServiceLoadBalanceTest {
      * @see RpcStatus
      *
      *
-     * 3. TODO 一致性 hash 算法
+     * 3. 一致性 hash 算法
      *
      * @see ConsistentHashLoadBalance
+     *
+     * 首先根据 ip 或者其他的信息为缓存节点生成一个 hash，并将这个 hash 投射到 [0, 2^32 - 1] 的圆环上。
+     * 当有查询或写入请求时，则为缓存项的 key 生成一个 hash 值。然后查找第一个大于或等于该 hash 值的缓存节点，并到这个节点中查询或写入缓存项。
+     * 如果当前节点挂了，则在下一次查询或写入缓存时，为缓存项查找另一个大于其 hash 值的缓存节点即可。
+     *
+     * 需要特别说明的是，ConsistentHashLoadBalance 的负载均衡逻辑只受参数值影响，具有相同参数值的请求将会被分配给同一个服务提供者。
+     * ConsistentHashLoadBalance 不关心权重，因此使用时需要注意一下。
+     *
+     * 一致性哈希的应用场景：
+     * 当大家谈到一致性哈希算法的时候，首先的第一印象应该是在缓存场景下的使用，因为在一个优秀的哈希算法加持下，其上下线节点对整体数据的影响(迁移)都是比较友好的。
+     * 但是想一下为什么 Dubbo 在负载均衡策略里面提供了基于一致性哈希的负载均衡策略？它的实际使用场景是什么？
+     * 我最开始也想不明白。我想的是在 Dubbo 的场景下，假设需求是想要一个用户的请求一直让一台服务器处理，那我们可以采用一致性哈希负载均衡策略，把用户号进行哈希计算，可以实现这样的需求。但是这样的需求未免有点太牵强了，适用场景略小。
+     * 直到有天晚上，我睡觉之前，电光火石之间突然想到了一个稍微适用的场景了。
+     * 如果需求是需要保证【某一类请求必须顺序处理】呢？
+     * 如果你用其他负载均衡策略，请求分发到了不同的机器上去，就很难保证请求的顺序处理了。比如A，B请求要求顺序处理，现在A请求先发送，被负载到了A服务器上，B请求后发送，被负载到了B服务器上。
+     * 而B服务器由于性能好或者当前没有其他请求或者其他原因极有可能在A服务器还在处理A请求之前就把B请求处理完成了。这样不符合我们的要求。
+     * 这时，一致性哈希负载均衡策略就上场了，它帮我们保证了某一类请求都发送到固定的机器上去执行。比如把同一个用户的请求发送到同一台机器上去执行，就意味着把某一类请求发送到同一台机器上去执行。
+     * 所以我们只需要在该机器上运行的程序中保证顺序执行就行了，比如你加一个队列。
+     * 一致性哈希算法+队列，可以实现顺序处理的需求。
+     * https://blog.csdn.net/qq_27243343/article/details/106459095
      *
      *
      * 4. 加权轮询负载均衡
@@ -112,5 +137,52 @@ public class ServiceLoadBalanceTest {
      *   6	    [9, -1, -1]	         A	    [2, -1, -1]
      *   7   	[7, 0, 0]	         A	    [0, 0, 0]
      *
+     *
+     * 5.
      */
+
+    /**
+     * 加权轮询负载均衡 自测
+     */
+    @Test
+    public void roundRobin() {
+        String[] nodes = new String[]{"A", "B", "C"}; // 节点
+        int[] weights = new int[]{5, 1, 1}; // 权重
+
+        List<String> resultList = new ArrayList<>();
+        for (int i = 0; i < nodes.length; i++) {
+            String node = nodes[i];
+            int weight = weights[i];
+            for (int j = 0; j < weight; j++) {
+                resultList.add(node);
+            }
+        }
+        System.out.println("resultList = " + resultList); // [A, A, A, A, A, B, C]
+        Collections.shuffle(resultList); // 洗牌
+        System.out.println("resultList = " + resultList); // [A, A, A, B, C, A, A]
+    }
+
+    @Test
+    public void identityHashCode() {
+        int hashCode01 = System.identityHashCode("HAHA");
+        int hashCode02 = System.identityHashCode("HEHE");
+        System.out.println("hashCode01 = " + hashCode01);
+        System.out.println("hashCode02 = " + hashCode02);
+
+        List<String> list = new ArrayList<>();
+        list.add("AAA");
+        System.out.println("list.hashCode() = " + list.hashCode());
+        list.add("BBB");
+        System.out.println("list.hashCode() = " + list.hashCode());
+
+        /**
+         * 执行结果：
+         *
+         * hashCode01 = 1122805102
+         * hashCode02 = 1391942103
+         * list.hashCode() = 64576
+         * list.hashCode() = 2067394
+         */
+    }
+
 }
