@@ -1,8 +1,11 @@
 package com.sumkor.demo.cluster;
 
+import org.apache.dubbo.config.annotation.DubboService;
 import org.apache.dubbo.rpc.RpcStatus;
+import org.apache.dubbo.rpc.cluster.Constants;
 import org.apache.dubbo.rpc.cluster.LoadBalance;
 import org.apache.dubbo.rpc.cluster.loadbalance.*;
+import org.apache.dubbo.rpc.filter.ActiveLimitFilter;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -22,6 +25,7 @@ import java.util.List;
  * 基于最少活跃调用数算法的 LeastActiveLoadBalance
  * 基于 hash 一致性的 ConsistentHashLoadBalance
  * 基于加权轮询算法的 RoundRobinLoadBalance
+ * 最短响应时间负载均衡 ShortestResponseLoadBalance
  *
  * @author Sumkor
  * @since 2021/1/14
@@ -57,6 +61,8 @@ public class ServiceLoadBalanceTest {
      * 当调用次数比较少时，Random 产生的随机数可能会比较集中，此时多数请求会落到同一台服务器上。
      * 这个缺点并不是很严重，多数情况下可以忽略。RandomLoadBalance 是一个简单，高效的负载均衡实现，因此 Dubbo 选择它作为缺省实现。
      *
+     * 权重通过 {@link DubboService} 注解配置在服务提供者的接口实现类上，默认权重是 100 {@link Constants#DEFAULT_WEIGHT}
+     *
      *
      * 2. 最小活跃数负载均衡
      *
@@ -79,8 +85,11 @@ public class ServiceLoadBalanceTest {
      *     如果有多个 Invoker 具有最小活跃数，且它们的权重不相等，此时处理方式和 RandomLoadBalance 一致
      *     如果有多个 Invoker 具有最小活跃数，但它们的权重相等，此时随机返回一个即可
      *
-     * TODO 最小活跃数赋值
-     * @see RpcStatus
+     * 最小活跃数如何赋值？如何获取？
+     * 需要在客户端配置 {@link ActiveLimitFilter} 使得 {@link RpcStatus#active} 生效。
+     * 即，最少活跃数负载均衡算法必须配合 ActiveLimitFilter 使用。
+     * 客户端发送请求时，记录对应的服务端活跃数 + 1；客户端接收到响应后，记录对应服务端的活跃数 - 1。
+     * 这里的最小活跃数，是基于同一个客户端的视角，观察多个服务端的结果。并不代表客观上的服务端的活跃数！
      *
      *
      * 3. 一致性 hash 算法
@@ -138,7 +147,20 @@ public class ServiceLoadBalanceTest {
      *   7   	[7, 0, 0]	         A	    [0, 0, 0]
      *
      *
-     * 5.
+     * 5. 最短响应时间负载均衡
+     *
+     * @see ShortestResponseLoadBalance
+     *
+     * 从多个服务提供者中选择出调用成功的且响应时间最短的服务提供者，由于满足这样条件的服务提供者有可能有多个。所以当选择出多个服务提供者后要根据他们的权重做分析。
+     * 但是如果只选择出来了一个，直接用选出来这个。
+     * 如果真的有多个，看它们的权重是否一样，如果不一样，则走加权随机算法的逻辑。
+     * 如果它们的权重是一样的，则随机调用一个。
+     *
+     * 最短响应时间如何获取？
+     * 请求当前服务提供者的 预计等待响应时间 = 获取调用成功的平均时间 * 活跃数
+     * 获取调用成功的平均时间 = 调用成功的请求数总数对应的总耗时 / 调用成功的请求数总数
+     * @see RpcStatus#getSucceededAverageElapsed()
+     * @see RpcStatus#endCount(org.apache.dubbo.rpc.RpcStatus, long, boolean)
      */
 
     /**

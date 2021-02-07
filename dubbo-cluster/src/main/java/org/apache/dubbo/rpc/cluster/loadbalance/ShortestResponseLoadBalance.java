@@ -40,7 +40,7 @@ public class ShortestResponseLoadBalance extends AbstractLoadBalance {
     protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         // Number of invokers
         int length = invokers.size();
-        // Estimated shortest response time of all invokers
+        // Estimated shortest response time of all invokers // 当前最短响应时间
         long shortestResponse = Long.MAX_VALUE;
         // The number of invokers having the same estimated shortest response time
         int shortestCount = 0;
@@ -60,20 +60,20 @@ public class ShortestResponseLoadBalance extends AbstractLoadBalance {
             Invoker<T> invoker = invokers.get(i);
             RpcStatus rpcStatus = RpcStatus.getStatus(invoker.getUrl(), invocation.getMethodName());
             // Calculate the estimated response time from the product of active connections and succeeded average elapsed time.
-            long succeededAverageElapsed = rpcStatus.getSucceededAverageElapsed();
-            int active = rpcStatus.getActive();
-            long estimateResponse = succeededAverageElapsed * active;
+            long succeededAverageElapsed = rpcStatus.getSucceededAverageElapsed(); // 获取调用成功的平均时间 = 调用成功的请求数总数对应的总耗时 / 调用成功的请求数总数
+            int active = rpcStatus.getActive(); // 活跃数，即服务提供者堆积的请求数
+            long estimateResponse = succeededAverageElapsed * active; // 请求当前服务提供者的预计等待响应时间
             int afterWarmup = getWeight(invoker, invocation);
             weights[i] = afterWarmup;
             // Same as LeastActiveLoadBalance
-            if (estimateResponse < shortestResponse) {
+            if (estimateResponse < shortestResponse) { // 找到最短响应时间的服务提供者
                 shortestResponse = estimateResponse;
                 shortestCount = 1;
                 shortestIndexes[0] = i;
                 totalWeight = afterWarmup;
                 firstWeight = afterWarmup;
                 sameWeight = true;
-            } else if (estimateResponse == shortestResponse) {
+            } else if (estimateResponse == shortestResponse) { // 记录具有相同的最短响应时间的服务提供者
                 shortestIndexes[shortestCount++] = i;
                 totalWeight += afterWarmup;
                 if (sameWeight && i > 0
@@ -85,7 +85,7 @@ public class ShortestResponseLoadBalance extends AbstractLoadBalance {
         if (shortestCount == 1) {
             return invokers.get(shortestIndexes[0]);
         }
-        if (!sameWeight && totalWeight > 0) {
+        if (!sameWeight && totalWeight > 0) { // 有多个 Invoker 具有相同的最短响应时间，但它们之间的权重不同，此时处理方式和 RandomLoadBalance 一致
             int offsetWeight = ThreadLocalRandom.current().nextInt(totalWeight);
             for (int i = 0; i < shortestCount; i++) {
                 int shortestIndex = shortestIndexes[i];
@@ -95,6 +95,6 @@ public class ShortestResponseLoadBalance extends AbstractLoadBalance {
                 }
             }
         }
-        return invokers.get(shortestIndexes[ThreadLocalRandom.current().nextInt(shortestCount)]);
+        return invokers.get(shortestIndexes[ThreadLocalRandom.current().nextInt(shortestCount)]); // 如果权重相同时，随机返回一个 Invoker
     }
 }
